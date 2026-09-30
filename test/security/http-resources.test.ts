@@ -41,6 +41,11 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
       const response = await post(body); assert.equal(response.status, 400);
       assert.equal((await response.json()).error, 'Invalid input');
     }
+    const polluted = await fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: '{"question":"leave","context":{"__proto__":{"polluted":true}}}',
+    });
+    assert.equal(polluted.status, 400);
+    assert.equal((await polluted.json()).error, 'Forbidden object key');
     const tooLarge = await post({ question: 'x'.repeat(LIMITS.jsonBodyBytes) });
     assert.equal(tooLarge.status, 413); assert.equal((await tooLarge.json()).error, 'Request too large');
     assert.equal((await post({ question: 'Sunday overtime in Belgium?' })).status, 200);

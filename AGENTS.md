@@ -56,6 +56,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - Casper:
 
 ## Status
+- [x] Static SQL allowlists, hostile prompt fixtures, safe YAML and prototype-key rejection (`docs/security/INJECTION_HARDENING.md`)
 - [x] Modular API composition/routes and Ask feature hooks/components (`docs/ARCHITECTURE.md`)
 - [x] Strict input schemas, centralized limits, model budgets, call deadlines and regex audit (`docs/security/RESOURCE_LIMITS.md`)
 - [x] Brain verification JWT validation, key rotation, transactional single use and production mock-issuer guard (`docs/security/VERIFICATION_TOKENS.md`)

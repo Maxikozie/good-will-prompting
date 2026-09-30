@@ -51,3 +51,7 @@ The table records the **pre-fix baseline**. The subsequent [MCP authorization ch
 ## Resource-hardening update
 
 Strict input validation, bounded config/transport/model input, durable model budgets, tool token buckets, provider/DB deadlines and response-error redaction are implemented in the resource-limits branch. Database row schemas now run in production too. See [RESOURCE_LIMITS.md](RESOURCE_LIMITS.md) and [REGEX_AUDIT.md](REGEX_AUDIT.md) for scope and limitations. This does not close the separate provenance, semantic grounding, HTTP identity, retention or deployment findings above.
+
+## Injection-hardening update
+
+SQL construction now selects frozen, fully static statements with exact identifier allowlists. YAML uses an explicit core schema with no custom tags; nested prototype keys are rejected. Custom model adapters are independently schema-checked, JSON prose/fences are rejected, retry feedback is delimited, and evidence/wiki quote dropping is covered by ten hostile passages. See [INJECTION_HARDENING.md](INJECTION_HARDENING.md) and [SQL_AUDIT.md](SQL_AUDIT.md). This does not establish semantic truth of model-extracted values or close the separate provenance/grounding findings.

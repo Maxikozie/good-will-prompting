@@ -15,7 +15,7 @@ export async function getPerson(db: Db, id: string): Promise<Person | null> {
 }
 
 export async function listPersons(db: Db, opts: { activeOnly?: boolean } = {}): Promise<Person[]> {
-  const r = await db.query(`SELECT * FROM org.person ${opts.activeOnly ? 'WHERE active' : ''} ORDER BY id`);
+  const r = await db.query('SELECT * FROM org.person WHERE (NOT $1::boolean OR active) ORDER BY id', [opts.activeOnly ?? false]);
   return r.rows.map(personFromRow);
 }
 

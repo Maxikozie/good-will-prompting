@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { parse } from 'yaml';
+import { parseDocument, visit } from 'yaml';
 import { z } from 'zod';
 import { LIMITS } from './limits';
 import { ResourceError } from './errors';
@@ -35,7 +35,10 @@ export function boundedValue(value: unknown): void {
     if (item && typeof item === 'object') {
       if (seen.has(item)) throw new ResourceError(400, 'Invalid input');
       seen.add(item);
-      for (const child of Object.values(item)) todo.push([child, depth + 1]);
+      for (const [key, child] of Object.entries(item)) {
+        if (['__proto__', 'constructor', 'prototype'].includes(key)) throw new ResourceError(400, 'Forbidden object key');
+        todo.push([child, depth + 1]);
+      }
     }
   }
 }
@@ -49,7 +52,12 @@ export function parseJson(text: string, maxBytes = LIMITS.jsonBodyBytes): unknow
 export function parseYaml(text: string): unknown {
   if (Buffer.byteLength(text) > LIMITS.configBytes) throw new ResourceError(413, 'Input too large');
   // No aliases: prevents expansion bombs and cyclic structures before schema validation.
-  const value: unknown = parse(text, { maxAliasCount: 0, uniqueKeys: true });
+  const document = parseDocument(text, { schema: 'core', version: '1.2', customTags: [], resolveKnownTags: false, merge: false, uniqueKeys: true });
+  if (document.errors.length || document.warnings.length) throw new ResourceError(400, 'Invalid YAML');
+  visit(document, { Node(_key, node) {
+    if (node.tag && !['tag:yaml.org,2002:str', 'tag:yaml.org,2002:int', 'tag:yaml.org,2002:float', 'tag:yaml.org,2002:bool', 'tag:yaml.org,2002:null', 'tag:yaml.org,2002:map', 'tag:yaml.org,2002:seq'].includes(node.tag)) throw new ResourceError(400, 'Forbidden YAML tag');
+  } });
+  const value: unknown = document.toJS({ maxAliasCount: 0 });
   boundedValue(value);
   return value;
 }

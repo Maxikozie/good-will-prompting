@@ -1,3 +1,5 @@
+import { LLMValidationError } from './errors';
+import { boundedValue } from '../security/input';
 import { MessagesSchema } from '../security/model';
 import { reserveModelCall } from '../security/budget';
 import { deadline } from '../security/runtime';
@@ -31,7 +33,12 @@ export interface Task<T> {
 export async function runTask<T>(provider: LLMProvider, task: Task<T>): Promise<T> {
   MessagesSchema.parse(task.messages);
   if (!provider.budgetsManaged) await reserveModelCall(task.messages.map((m) => m.content));
-  return deadline(() => provider.completeJSON(task.schema, task.messages, task.opts), LIMITS.llmTimeoutMs * (LIMITS.llmRetries + 1));
+  const output = await deadline(() => provider.completeJSON(task.schema, task.messages, task.opts), LIMITS.llmTimeoutMs * (LIMITS.llmRetries + 1));
+  boundedValue(output);
+  const parsed = task.schema.parse(output); // Also enforce the contract for custom provider adapters.
+  const problem = task.opts.check?.(parsed);
+  if (problem) throw new LLMValidationError(problem, task.promptId, 1, '');
+  return parsed;
 }
 
 function task<T>(promptId: PromptId, schema: z.ZodType<T>, vars: Record<string, string>, check?: (v: T) => string | null): Task<T> {
@@ -65,12 +72,11 @@ export interface ReferenceExtractInput {
   section: string;
 }
 
-/** Whitespace-insensitive check that every quote really occurs in the source text (anti-hallucination, SPEC §5 stage 20). */
+/** Exact substring check that every quote really occurs in the source text (anti-hallucination, SPEC §5 stage 20). */
 export function verbatimQuotes(sourceText: string): (o: ExtractOutput) => string | null {
-  const squash = (s: string) => s.replace(/\s+/g, ' ').trim();
-  const hay = squash(sourceText);
+  const hay = sourceText;
   return (o) => {
-    const bad = o.claims.filter((c) => !hay.includes(squash(c.quote)));
+    const bad = o.claims.filter((c) => !hay.includes(c.quote));
     return bad.length ? `These quotes are not verbatim in the text: ${bad.map((c) => JSON.stringify(c.quote.slice(0, 80))).join(', ')}. Copy quotes character for character.` : null;
   };
 }

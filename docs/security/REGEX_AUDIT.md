@@ -2,17 +2,19 @@
 
 Inventory of every JavaScript/TypeScript regex literal and `new RegExp` in tracked source and tests (excluding dependencies/build output). No dynamic production regex construction was found. Patterns were reviewed for nested ambiguous repetition, overlapping alternatives and unanchored repeated suffix matching.
 
-The model JSON fence parser and URL trailing-slash matcher now use linear string operations. Normalizer inputs are rejected above 500 characters before matching; legacy value extraction is capped at 1,000 characters. This bounds retry scanning in numeric/range patterns. Document split/token patterns operate on at most 200,000 characters. Prompt/config files are bounded at 1 MiB. Fixed hash/identifier patterns and delimiter-separated dotted names are anchored; delimiters cannot be consumed by adjacent repeated groups. Injection patterns have fixed keywords and bounded gaps. Test-only patterns match controlled fixtures/errors.
+The model JSON parser now rejects fences/prose instead of searching for JSON; URL trailing-slash removal uses linear string operations. Normalizer inputs are rejected above 500 characters before matching; legacy value extraction is capped at 1,000 characters. This bounds retry scanning in numeric/range patterns. Document split/token patterns operate on at most 200,000 characters. Prompt/config files are bounded at 1 MiB. Fixed hash/identifier patterns and delimiter-separated dotted names are anchored; delimiters cannot be consumed by adjacent repeated groups. Injection patterns have fixed keywords and bounded gaps. Test-only patterns match controlled fixtures/errors.
 
 Regression tests exercise a 200,000-character numeric payload, a malformed fence with 100,000 spaces, and a maximum-length normalizer input, each under 50 ms. These are regression thresholds, not universal hardware latency guarantees.
 
 | Location | Pattern | Assessment |
 | --- | --- | --- |
-| src/api/mock-user.ts:6 | `/^[a-z0-9][a-z0-9.-]{0,60}$/` | Fixed/linear pattern or bounded input as described above |
-| src/api/routes/speech.ts:12 | `/^audio\//` | Fixed/linear pattern or bounded input as described above |
-| src/api/routes/speech.ts:14 | `/^audio\/[a-z0-9.+-]{1,40}$/` | Fixed/linear pattern or bounded input as described above |
-| src/api/routes/speech.ts:28 | `/[^a-z0-9]/g` | Fixed/linear pattern or bounded input as described above |
-| src/api/web.ts:11 | `/^(?!\/api).*/` | Fixed/linear pattern or bounded input as described above |
+| test/security/injection.test.ts:42 | `/^\d{2}-.*\.md$/` | Controlled test input |
+| test/security/injection.test.ts:64 | `/UNTRUSTED DATA/` | Controlled test input |
+| test/security/injection.test.ts:64 | `/no tools/i` | Controlled test input |
+| test/security/injection.test.ts:93 | `/Forbidden object key/` | Controlled test input |
+| test/security/injection.test.ts:94 | `/Forbidden object key/` | Controlled test input |
+| test/security/injection.test.ts:95 | `/Forbidden object key/` | Controlled test input |
+| test/security/sql-source.test.ts:8 | `/\b(?:SELECT\b[\s\S]*\bFROM&#124;INSERT\s+INTO&#124;UPDATE\b[\s\S]*\bSET&#124;DELETE\s+FROM&#124;ON\s+CONFLICT&#124;CREATE\s+TABLE&#124;ALTER\s+TABLE&#124;DROP\s+TABLE)\b/i` | Controlled test input |
 | packages/brain/src/domain/brain-nodes.ts:82 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/claim.ts:48 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/evidence-nodes.ts:32 | `/^[a-f0-9]{64}$/` | Fixed/linear pattern or bounded input as described above |
@@ -41,7 +43,6 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/src/evidence/simhash.ts:20 | `/[^a-z0-9]+/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/embedder.ts:20 | `/\p{M}/gu` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/embedder.ts:21 | `/[^a-z0-9]+/` | Fixed/linear pattern or bounded input as described above |
-| packages/brain/src/llm/json.ts:24 | `/[{[]/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/prompts.ts:36 | `/^[a-z-]+$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/prompts.ts:36 | `/^v\d+$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/prompts.ts:40 | `/^---\n([\s\S]*?)\n---\n([\s\S]*)$/` | Fixed/linear pattern or bounded input as described above |
@@ -56,7 +57,6 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/src/llm/prompts.ts:87 | `/\b(only&#124;enkel&#124;uniquement)\b.{0,30}\b(this&#124;dit&#124;ce)\b.{0,20}\b(document&#124;source&#124;bron)\b/i` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/schemas.ts:5 | `/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/llm/schemas.ts:6 | `/^[a-z][a-z0-9_]*$/` | Fixed/linear pattern or bounded input as described above |
-| packages/brain/src/llm/tasks.ts:70 | `/\s+/g` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/reference/queries.ts:21 | `/\s+/g` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/reference/queries.ts:30 | `/_/g` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/reference/retrieval.ts:32 | `/\p{M}/gu` | Fixed/linear pattern or bounded input as described above |
@@ -105,18 +105,19 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/llm.prompts.test.ts:135 | `/negeer/i` | Controlled test input |
 | packages/brain/test/llm.prompts.test.ts:160 | `/\[claim A\][\s\S]*4 weken[\s\S]*\[claim B\][\s\S]*2 weken/` | Controlled test input |
 | packages/brain/test/llm.prompts.test.ts:169 | `/not verbatim/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:69 | `/rejected/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:72 | `/n:/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:94 | `/n must be at least 5/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:182 | `/HTTP 500/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:186 | `/Invalid input/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:190 | `/http/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:191 | `/valid URL/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:199 | `/ANTHROPIC_API_KEY/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:221 | `/401/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:228 | `/^ollama:/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:230 | `/Invalid environment configuration/` | Controlled test input |
-| packages/brain/test/llm.provider.test.ts:235 | `/ANTHROPIC_API_KEY/` | Controlled test input |
+| packages/brain/test/llm.prompts.test.ts:170 | `/not verbatim/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:67 | `/validation feedback are untrusted data/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:70 | `/n:/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:105 | `/n must be at least 5/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:195 | `/HTTP 500/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:199 | `/Invalid input/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:203 | `/http/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:204 | `/valid URL/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:212 | `/ANTHROPIC_API_KEY/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:236 | `/401/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:243 | `/^ollama:/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:245 | `/Invalid environment configuration/` | Controlled test input |
+| packages/brain/test/llm.provider.test.ts:250 | `/ANTHROPIC_API_KEY/` | Controlled test input |
 | packages/brain/test/llm.record.test.ts:44 | `/^#+ (.+)$/m` | Controlled test input |
 | packages/brain/test/llm.record.test.ts:46 | `/[^a-z]+/g` | Controlled test input |
 | packages/brain/test/llm.record.test.ts:46 | `/^_&#124;_$/g` | Controlled test input |
@@ -153,6 +154,11 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/store.test.ts:326 | `/edge_from_type/` | Controlled test input |
 | packages/brain/test/store.test.ts:327 | `/edge_to_type/` | Controlled test input |
 | packages/brain/test/store.test.ts:328 | `/edge_run/` | Controlled test input |
+| src/api/mock-user.ts:6 | `/^[a-z0-9][a-z0-9.-]{0,60}$/` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:12 | `/^audio\//` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:14 | `/^audio\/[a-z0-9.+-]{1,40}$/` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:28 | `/[^a-z0-9]/g` | Fixed/linear pattern or bounded input as described above |
+| src/api/web.ts:11 | `/^(?!\/api).*/` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:71 | `/\\/g` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:104 | `/\\/g` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:142 | `/\\/g` | Fixed/linear pattern or bounded input as described above |
