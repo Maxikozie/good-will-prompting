@@ -1,0 +1,18 @@
+{
+  "_mock": "// MOCK: internal HR directory export (fake people, fake company data)",
+  "people": [
+    { "id": "lotte.peeters", "name": "Lotte Peeters", "role": "Senior Payroll Consultant", "team": "Payroll BE – Retail", "country": "BE", "active": true, "email": "lotte.peeters@sdworx.example" },
+    { "id": "marc.claes", "name": "Marc Claes", "role": "Team Lead Payroll", "team": "Payroll BE – Retail", "country": "BE", "active": true, "email": "marc.claes@sdworx.example" },
+    { "id": "eva.jacobs", "name": "Eva Jacobs", "role": "Payroll Consultant", "team": "Payroll BE – Retail", "country": "BE", "active": true, "email": "eva.jacobs@sdworx.example" },
+    { "id": "sven.janssens", "name": "Sven Janssens", "role": "Customer Service Agent", "team": "Customer Service BE", "country": "BE", "active": true, "email": "sven.janssens@sdworx.example" },
+    { "id": "nina.maes", "name": "Nina Maes", "role": "Customer Service Agent", "team": "Customer Service BE", "country": "BE", "active": true, "email": "nina.maes@sdworx.example" },
+    { "id": "pieter.wouters", "name": "Pieter Wouters", "role": "Payroll Consultant (left in 2023)", "team": "Payroll BE – Retail", "country": "BE", "active": false, "email": "pieter.wouters@sdworx.example" },
+    { "id": "daan.visser", "name": "Daan Visser", "role": "Payroll Consultant", "team": "Payroll NL", "country": "NL", "active": true, "email": "daan.visser@sdworx.example" },
+    { "id": "sanne.devries", "name": "Sanne de Vries", "role": "Team Lead Payroll", "team": "Payroll NL", "country": "NL", "active": true, "email": "sanne.devries@sdworx.example" }
+  ],
+  "teams": [
+    { "name": "Payroll BE – Retail", "lead": "marc.claes", "country": "BE" },
+    { "name": "Customer Service BE", "lead": "marc.claes", "country": "BE" },
+    { "name": "Payroll NL", "lead": "sanne.devries", "country": "NL" }
+  ]
+}

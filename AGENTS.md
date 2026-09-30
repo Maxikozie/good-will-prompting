@@ -27,20 +27,29 @@ Mock data, hardcoded values and fake auth are fine. Label mocks clearly in code 
 - Commit messages: short and imperative ("add payslip upload").
 
 ## Stack
-<!-- fill in once decided, e.g. frontend / backend / LLM provider + model -->
+**TrustLayer**: one MCP server that sits on top of SD Worx's existing assistant (see README.md).
+Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod · API: Express 5 · Dashboard: Vite + React 19 + Tailwind v4 · Vault: plain markdown + YAML (`yaml`). No LLM at runtime: trust scoring is deterministic, claims are pre-extracted in `data/mock/claims-cache.json`.
 
 ## Run
-<!-- e.g. npm install && npm run dev -->
+- `npm install && npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
+- `npm run mcp` → MCP server on stdio (Claude Code: `.mcp.json` is in the repo root)
+- `npm run ingest` → rebuild the vault from `data/mock` (same as "Reset demo" in the dashboard)
+- `npm run typecheck`
 
 ## Structure & ownership
-<!-- who works on what, so agents know what not to touch -->
-- Maximilian:
+- `data/mock/`: MOCK sources (SharePoint md, Teams/email json, HR directory, existing-assistant answers, claims cache)
+- `src/core/`: `types.ts` is the shared contract. ingest, trust scoring (`trust.ts`), health radar (`health.ts`), fix loop (`tasks.ts`), experts, zod schemas
+- `src/mcp/server.ts`: the 6 MCP tools. `src/api/server.ts`: Express API + Vite middleware
+- `web/`: dashboard (Live call, Knowledge radar, Owner inbox)
+- `vault/`: generated, gitignored. Never edit by hand, run `npm run ingest`
+- Maximilian: initial MVP (all folders)
 - Isaac:
 - Antonios:
 - Casper:
 
 ## Status
-- [ ] Project scaffold running
-- [ ] Core feature
+- [x] Project scaffold running
+- [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API
 - [ ] UI polish for demo
-- [ ] Video recorded
+- [ ] Aikido scan + fixes
+- [ ] Video recorded (script: docs/demo-script.md)

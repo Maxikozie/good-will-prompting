@@ -15,6 +15,7 @@ They explicitly do **not** want "a SharePoint with a search function" or "anothe
 | [challenge.md](challenge.md) | The official brief: problem statement, real-life examples, guiding questions, what they don't want |
 | [sd-worx.md](sd-worx.md) | Company context: size, products (mysdworx), where knowledge lives today |
 | [judging.md](judging.md) | Deadline, deliverables, Aikido security scoring and how to earn those points |
+| [solution.md](solution.md) | **What we're building: TrustLayer** (MCP trust layer), how it maps to the brief, demo story, design choices |
 
 ## Sources
 - SD Worx challenge talk by the product owner of mysdworx (live transcript, cleaned up) + slide photos, 30 Sept 2026.

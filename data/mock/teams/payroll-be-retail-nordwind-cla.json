@@ -1,0 +1,31 @@
+{
+  "_mock": "// MOCK: Microsoft Teams channel thread export (fake). Real version: Microsoft Graph /teams/{id}/channels/{id}/messages",
+  "id": "teams-nordwind-be-cla-2026",
+  "title": "Teams chat: new JC 311 CLA for Nordwind Retail BE",
+  "team": "Payroll BE – Retail",
+  "channel": "Nordwind Retail",
+  "url": "https://teams.microsoft.example/l/message/19:nordwind-be@thread.tacv2/1758796920000",
+  "country": "BE",
+  "client": "Nordwind Retail",
+  "product": "Pay",
+  "messages": [
+    {
+      "id": "1758796920000",
+      "from": "lotte.peeters",
+      "createdDateTime": "2026-09-25T10:42:00Z",
+      "body": "Heads-up for everyone handling Nordwind Retail BE: the new JC 311 CLA applies from 1 September 2026. Sunday overtime is now paid at a 120% premium on top of the hourly wage (it was 100%). Weekday overtime stays at 50%. I'll update the client file on SharePoint once Nordwind signs off the payroll config."
+    },
+    {
+      "id": "1758797400000",
+      "from": "eva.jacobs",
+      "createdDateTime": "2026-09-25T10:50:00Z",
+      "body": "Thanks Lotte! Does that also apply to student workers?"
+    },
+    {
+      "id": "1758797700000",
+      "from": "lotte.peeters",
+      "createdDateTime": "2026-09-25T10:55:00Z",
+      "body": "Yes, students included. Payroll config for October is being updated."
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { parse, stringify } from 'yaml';
+import type { QueryLogEntry, Task, WikiPage } from './types';
+import { HASH_RE, META_DIR, PAGE_ID_RE, RAW_DIR, TASK_ID_RE, WIKI_DIR } from './util';
+
+// The vault is plain files so it opens in Obsidian and diffs in git:
+//   vault/raw/<sha256>.<ext>   immutable source copies (provenance)
+//   vault/wiki/<page-id>.md    one page per knowledge item, YAML frontmatter + markdown
+//   vault/.meta/               tasks.json, queries.log, raw-manifest.json
+// Files are only ever addressed by validated ids/hashes, never by a user-supplied path.
+
+const TASKS_FILE = path.join(META_DIR, 'tasks.json');
+const QUERIES_FILE = path.join(META_DIR, 'queries.log');
+const MANIFEST_FILE = path.join(META_DIR, 'raw-manifest.json');
+
+export interface RawMeta {
+  source_id: string;
+  origin: string;
+  original: string;
+  ingested_at: string;
+  ext: 'md' | 'json';
+}
+
+export function ensureVaultDirs(): void {
+  for (const d of [RAW_DIR, WIKI_DIR, META_DIR]) fs.mkdirSync(d, { recursive: true });
+}
+
+export function vaultExists(): boolean {
+  return fs.existsSync(WIKI_DIR) && fs.readdirSync(WIKI_DIR).some((f) => f.endsWith('.md'));
+}
+
+// ---------- frontmatter ----------
+
+export function splitFrontmatter(src: string): { data: Record<string, unknown>; body: string } {
+  const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) return { data: {}, body: src };
+  const data = (parse(m[1]) ?? {}) as Record<string, unknown>;
+  return { data, body: m[2] };
+}
+
+// ---------- wiki pages ----------
+
+function pagePath(id: string): string {
+  if (!PAGE_ID_RE.test(id)) throw new Error('Invalid page id');
+  return path.join(WIKI_DIR, `${id}.md`);
+}
+
+function toPage(id: string, src: string): WikiPage {
+  const { data, body } = splitFrontmatter(src);
+  const d = data as Partial<WikiPage>;
+  return {
+    id,
+    title: String(d.title ?? id),
+    topic: String(d.topic ?? 'misc'),
+    owner: d.owner ?? null,
+    owner_team: d.owner_team ?? null,
+    author: d.author ?? null,
+    country: d.country ?? null,
+    client: d.client ?? null,
+    product: d.product ?? null,
+    source_type: d.source_type ?? 'wiki',
+    origin: d.origin ?? 'internal',
+    location: String(d.location ?? ''),
+    created: String(d.created ?? ''),
+    last_edited: String(d.last_edited ?? ''),
+    last_verified: d.last_verified ? String(d.last_verified) : null,
+    status: d.status ?? 'unverified',
+    sources: Array.isArray(d.sources) ? d.sources.map(String) : [],
+    supersedes: Array.isArray(d.supersedes) ? d.supersedes.map(String) : [],
+    superseded_by: d.superseded_by ?? null,
+    captured_in: d.captured_in ?? null,
+    claims: Array.isArray(d.claims) ? d.claims : [],
+    body: body.trim(),
+  };
+}
+
+export function listPages(): WikiPage[] {
+  if (!fs.existsSync(WIKI_DIR)) return [];
+  return fs
+    .readdirSync(WIKI_DIR)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => f.slice(0, -3))
+    .filter((id) => PAGE_ID_RE.test(id))
+    .map((id) => toPage(id, fs.readFileSync(path.join(WIKI_DIR, `${id}.md`), 'utf8')))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+export function getPage(id: string): WikiPage | null {
+  if (!PAGE_ID_RE.test(id)) return null;
+  const p = pagePath(id);
+  if (!fs.existsSync(p)) return null;
+  return toPage(id, fs.readFileSync(p, 'utf8'));
+}
+
+export function savePage(page: WikiPage): void {
+  const { id, body, ...meta } = page;
+  const fm = stringify({ id, ...meta }, { lineWidth: 0 }).trimEnd();
+  fs.writeFileSync(pagePath(id), `---\n${fm}\n---\n\n${body.trim()}\n`, 'utf8');
+}
+
+// ---------- raw store (content-addressed, write-once) ----------
+
+function readManifest(): Record<string, RawMeta> {
+  if (!fs.existsSync(MANIFEST_FILE)) return {};
+  return JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8')) as Record<string, RawMeta>;
+}
+
+export function putRaw(hash: string, content: string, meta: RawMeta): void {
+  if (!HASH_RE.test(hash)) throw new Error('Invalid hash');
+  const file = path.join(RAW_DIR, `${hash}.${meta.ext}`);
+  if (!fs.existsSync(file)) fs.writeFileSync(file, content, { encoding: 'utf8', flag: 'wx' });
+  const manifest = readManifest();
+  if (!manifest[hash]) {
+    manifest[hash] = meta;
+    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2), 'utf8');
+  }
+}
+
+export function getRaw(hash: string): { hash: string; content: string; meta: RawMeta } | null {
+  if (!HASH_RE.test(hash)) return null;
+  const meta = readManifest()[hash];
+  if (!meta) return null;
+  const ext = meta.ext === 'json' ? 'json' : 'md';
+  const file = path.join(RAW_DIR, `${hash}.${ext}`);
+  if (!fs.existsSync(file)) return null;
+  return { hash, content: fs.readFileSync(file, 'utf8'), meta };
+}
+
+// ---------- tasks ----------
+
+export function loadTasks(): Task[] {
+  if (!fs.existsSync(TASKS_FILE)) return [];
+  return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')) as Task[];
+}
+
+export function saveTasks(tasks: Task[]): void {
+  fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf8');
+}
+
+export function getTask(id: string): Task | null {
+  if (!TASK_ID_RE.test(id)) return null;
+  return loadTasks().find((t) => t.id === id) ?? null;
+}
+
+// ---------- query log (gap detection) ----------
+
+export function appendQuery(entry: QueryLogEntry): void {
+  fs.appendFileSync(QUERIES_FILE, JSON.stringify(entry) + '\n', 'utf8');
+}
+
+export function loadQueries(): QueryLogEntry[] {
+  if (!fs.existsSync(QUERIES_FILE)) return [];
+  return fs
+    .readFileSync(QUERIES_FILE, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as QueryLogEntry];
+      } catch {
+        return [];
+      }
+    });
+}
+
+export function resetMeta(): void {
+  if (fs.existsSync(WIKI_DIR)) {
+    for (const f of fs.readdirSync(WIKI_DIR)) if (f.endsWith('.md')) fs.unlinkSync(path.join(WIKI_DIR, f));
+  }
+  for (const f of [TASKS_FILE, QUERIES_FILE]) if (fs.existsSync(f)) fs.unlinkSync(f);
+}

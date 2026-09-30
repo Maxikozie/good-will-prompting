@@ -1,0 +1,12 @@
+{
+  "_mock": "// MOCK: topic catalogue (would be generated from the vault)",
+  "topics": [
+    { "id": "sunday-overtime-premium", "label": "Sunday overtime premium", "keywords": ["sunday", "sundays", "zondag", "zondagtoeslag", "zondagwerk", "overtime", "overuren", "premium", "toeslag", "weekend"] },
+    { "id": "night-work-premium", "label": "Night work premium", "keywords": ["night", "nights", "nacht", "nachtwerk", "nachttoeslag", "shift", "premium", "toeslag"] },
+    { "id": "meal-vouchers", "label": "Meal vouchers", "keywords": ["meal", "voucher", "vouchers", "maaltijdcheque", "maaltijdcheques", "lunch"] },
+    { "id": "holiday-allowance", "label": "Holiday allowance", "keywords": ["holiday", "vakantiegeld", "vacation", "allowance", "vakantietoeslag"] },
+    { "id": "year-end-bonus", "label": "Year-end bonus (13th month)", "keywords": ["bonus", "year-end", "13th", "eindejaarspremie", "dertiende", "month"] },
+    { "id": "bicycle-allowance", "label": "Bicycle commuting allowance", "keywords": ["bicycle", "bike", "cycling", "cycle", "fiets", "fietsvergoeding", "commute", "commuting"] },
+    { "id": "client-handover", "label": "Client handover", "keywords": ["handover", "hand-over", "portfolio", "onboarding", "takeover", "who", "call", "contact"] }
+  ]
+}

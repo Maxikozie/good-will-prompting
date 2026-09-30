@@ -1,0 +1,13 @@
+{
+  "_mock": "// MOCK: Outlook message export (fake). Real version: Microsoft Graph /users/{id}/messages/{id}",
+  "id": "email-nordwind-be-night-premium",
+  "subject": "RE: Night shift premium for the new warehouse team",
+  "from": "lotte.peeters",
+  "to": ["hr@nordwind-retail.example"],
+  "sentDateTime": "2026-06-03T14:20:00Z",
+  "url": "https://outlook.office.example/mail/id/AAMkAGNordwindNight",
+  "country": "BE",
+  "client": "Nordwind Retail",
+  "product": "Pay",
+  "body": "Hi Hanne,\n\nConfirming what we discussed: the new warehouse team gets the standard 25% night premium for hours between 20:00 and 06:00, same as store staff. Nothing extra to configure.\n\nKind regards,\nLotte Peeters\nPayroll BE – Retail, SD Worx"
+}

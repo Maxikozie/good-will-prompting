@@ -1,0 +1,38 @@
+{
+  "_mock": "// MOCK: precomputed claim extraction per source (stands in for a cached LLM extraction pass, so the demo needs no LLM at runtime)",
+  "claims": {
+    "sp-nordwind-be-overtime-2022": [
+      { "topic": "sunday-overtime-premium", "value": "100%", "text": "Sunday overtime at Nordwind Retail BE is paid with a 100% premium on top of the hourly wage.", "effective_from": "2022-01-01" }
+    ],
+    "sp-cs-be-kb-overtime": [
+      { "topic": "sunday-overtime-premium", "value": "50%", "text": "Sunday overtime for Nordwind Retail BE is paid at a 50% premium, the same as weekday overtime." }
+    ],
+    "sp-nordwind-nl-premiums": [
+      { "topic": "sunday-overtime-premium", "value": "50%", "text": "Nordwind Retail NL pays a 50% Sunday premium on the hourly wage (CAO Retail Non-Food)." }
+    ],
+    "teams-nordwind-be-cla-2026": [
+      { "topic": "sunday-overtime-premium", "value": "120%", "text": "Since 1 September 2026 (new JC 311 CLA), Sunday overtime at Nordwind Retail BE is paid at a 120% premium on top of the hourly wage (was 100%). Students included.", "effective_from": "2026-09-01" }
+    ],
+    "teams-nordwind-nl-sunday": [
+      { "topic": "sunday-overtime-premium", "value": "50%", "text": "Nordwind Retail NL keeps a 50% Sunday premium under the CAO Retail Non-Food." }
+    ],
+    "sp-nordwind-be-meal-vouchers": [
+      { "topic": "meal-vouchers", "value": "€8.00", "text": "Nordwind Retail BE grants a meal voucher of €8.00 per worked day (employer part €6.91)." }
+    ],
+    "sp-nordwind-be-night-work": [
+      { "topic": "night-work-premium", "value": "25%", "text": "Nordwind Retail BE pays a 25% night premium for hours worked between 20:00 and 06:00." }
+    ],
+    "email-nordwind-be-night-premium": [
+      { "topic": "night-work-premium", "value": "25%", "text": "Nordwind Retail BE warehouse staff get the standard 25% night premium for hours between 20:00 and 06:00." }
+    ],
+    "sp-nordwind-nl-holiday-allowance": [
+      { "topic": "holiday-allowance", "value": "8%", "text": "Nordwind Retail NL pays 8% holiday allowance (vakantiegeld) on the gross annual salary, with the May payroll." }
+    ],
+    "email-nordwind-be-year-end-bonus-2021": [
+      { "topic": "year-end-bonus", "value": "pro rata days worked", "text": "Nordwind Retail BE's year-end bonus (13th month) is calculated pro rata on days worked in the reference year (1 Oct – 30 Sep)." }
+    ],
+    "sp-nordwind-handover": [
+      { "topic": "client-handover", "value": "checklist", "text": "Taking over Nordwind Retail: meet the country owners Lotte Peeters (payroll BE) and Daan Visser (payroll NL), review open payroll config tickets and read the CLA/CAO overview." }
+    ]
+  }
+}

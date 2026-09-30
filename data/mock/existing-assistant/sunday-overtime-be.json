@@ -1,0 +1,30 @@
+{
+  "_mock": "// MOCK: what SD Worx's existing knowledge assistant returns today for the demo question (fake)",
+  "assistant": "SD Worx Knowledge Assistant",
+  "question": "What is the Sunday overtime premium for Nordwind Retail employees in Belgium?",
+  "topic": "sunday-overtime-premium",
+  "country": "BE",
+  "results": [
+    {
+      "id": "sp-nordwind-be-overtime-2022",
+      "title": "Nordwind Retail BE – Overtime & Sunday work rules",
+      "location": "https://sdworx.sharepoint.example/sites/payroll-be-retail/Clients/Nordwind/Overtime_rules_2022.docx",
+      "snippet": "Overtime hours worked on a Sunday are paid with a 100% premium on top of the hourly wage.",
+      "relevance": 0.92
+    },
+    {
+      "id": "sp-cs-be-kb-overtime",
+      "title": "KB – Overtime premiums for retail clients (Customer Service BE)",
+      "location": "https://sdworx.sharepoint.example/sites/cs-be/SitePages/KB-Overtime-premiums-retail.aspx",
+      "snippet": "Update 24/09/2026: Sunday overtime for Nordwind Retail is now paid at +50%, same as weekday overtime.",
+      "relevance": 0.88
+    },
+    {
+      "id": "sp-nordwind-nl-premiums",
+      "title": "Nordwind Retail – Sunday & overtime premiums",
+      "location": "https://sdworx.sharepoint.example/sites/payroll-nl/Klanten/Nordwind/Toeslagen.docx",
+      "snippet": "Sunday work (zondagtoeslag): 50% premium on the hourly wage.",
+      "relevance": 0.85
+    }
+  ]
+}
