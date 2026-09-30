@@ -1,0 +1,78 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import type { z } from 'zod';
+import { inputHash } from './cache';
+import { LLMError, MissingFixtureError } from './errors';
+import { describeIssues } from './json';
+import type { CompleteOpts, LLMProvider, Message } from './types';
+
+export interface Fixture {
+  promptId: string;
+  promptVersion: string;
+  inputHash: string;
+  /** Model that produced the response (informational). */
+  model: string;
+  /** The exact rendered prompt, kept so fixture diffs are reviewable. */
+  messages: Message[];
+  response: unknown;
+}
+
+export const fixtureFileName = (promptId: string, hash: string) => path.join(promptId, `${hash.slice(0, 16)}.json`);
+
+/**
+ * Replays recorded answers keyed by (promptId, inputHash). No network, no model, fully deterministic.
+ * A call without a fixture throws MissingFixtureError (it never guesses, never returns a default), and a fixture that
+ * no longer satisfies the schema throws too: stale fixtures are loud, not silent.
+ */
+export class FakeProvider implements LLMProvider {
+  readonly modelId = 'fake';
+  private readonly byKey = new Map<string, Fixture>();
+  /** Every call made, in order (assert on it in tests). */
+  readonly calls: { promptId: string; inputHash: string }[] = [];
+
+  constructor(fixtures: readonly Fixture[] = []) {
+    for (const f of fixtures) this.add(f);
+  }
+
+  static fromDir(dir: string): FakeProvider {
+    const fixtures: Fixture[] = [];
+    if (fs.existsSync(dir)) {
+      for (const sub of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!sub.isDirectory()) continue;
+        for (const f of fs.readdirSync(path.join(dir, sub.name)).filter((x) => x.endsWith('.json')).sort()) {
+          fixtures.push(JSON.parse(fs.readFileSync(path.join(dir, sub.name, f), 'utf8')) as Fixture);
+        }
+      }
+    }
+    return new FakeProvider(fixtures);
+  }
+
+  private static key(promptId: string, hash: string) {
+    return `${promptId}\u0000${hash}`;
+  }
+
+  add(f: Fixture): void {
+    this.byKey.set(FakeProvider.key(f.promptId, f.inputHash), f);
+  }
+
+  /** Convenience for unit tests: register an answer for exactly these messages. */
+  register(promptId: string, messages: readonly Message[], response: unknown, promptVersion = 'test'): void {
+    this.add({ promptId, promptVersion, inputHash: inputHash(messages), model: 'fake', messages: [...messages], response });
+  }
+
+  get size(): number {
+    return this.byKey.size;
+  }
+
+  async completeJSON<T>(schema: z.ZodType<T>, messages: readonly Message[], opts: CompleteOpts<T>): Promise<T> {
+    const hash = inputHash(messages);
+    this.calls.push({ promptId: opts.promptId, inputHash: hash });
+    const f = this.byKey.get(FakeProvider.key(opts.promptId, hash));
+    if (!f) throw new MissingFixtureError(opts.promptId, hash);
+    const parsed = schema.safeParse(f.response);
+    if (!parsed.success) throw new LLMError(`Fixture for "${opts.promptId}" (${hash.slice(0, 12)}) no longer matches the schema: ${describeIssues(parsed.error)}. Re-record it.`);
+    const problem = opts.check?.(parsed.data);
+    if (problem) throw new LLMError(`Fixture for "${opts.promptId}" (${hash.slice(0, 12)}) fails its check: ${problem}. Re-record it.`);
+    return parsed.data;
+  }
+}

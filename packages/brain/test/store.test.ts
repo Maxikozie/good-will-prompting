@@ -356,7 +356,7 @@ describe('transactions and migrations on a second database', () => {
   it('a fresh database migrates and seeds from scratch', async () => {
     const fresh = await pgliteDb();
     try {
-      expect(await migrate(fresh)).toEqual(['001_init.sql']);
+      expect(await migrate(fresh)).toEqual(['001_init.sql', '002_llm_cache.sql']);
       const r = await seedDemo(fresh);
       expect(r.evidencePassages).toBe(demo.evidence.reduce((n, e) => n + e.passages.length, 0));
     } finally {

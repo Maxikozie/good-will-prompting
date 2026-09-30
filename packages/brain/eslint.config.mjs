@@ -16,6 +16,7 @@ export default defineConfig(
   { ignores: ['node_modules/**', 'dist/**', 'coverage/**'] },
   js.configs.recommended,
   tseslint.configs.recommended,
+  { rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] } },
   {
     files: ['src/evidence/**/*.ts'],
     rules: forbid(['reference', 'pipeline'], 'evidence/** must not import reference/** or pipeline/** (corpus boundary)'),

@@ -11,7 +11,8 @@
     "build": "vite build web",
     "start": "vite build web && tsx src/api/server.ts --prod",
     "typecheck": "tsc --noEmit",
-    "brain:seed": "npm --prefix packages/brain run seed"
+    "brain:seed": "npm --prefix packages/brain run seed",
+    "brain:record": "npm --prefix packages/brain run record --"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.31.0",

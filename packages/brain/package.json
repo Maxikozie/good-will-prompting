@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "seed": "tsx src/store/seed-cli.ts"
+    "seed": "tsx src/store/seed-cli.ts",
+    "record": "tsx src/llm/record-cli.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
