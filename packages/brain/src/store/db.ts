@@ -2,6 +2,7 @@ import { LIMITS } from '../security/limits';
 import { parseEnv } from '../security/env';
 import { deadline } from '../security/runtime';
 import { ResourceError } from '../security/errors';
+import { assertAllowedDir } from '../security/input';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -106,8 +107,9 @@ function wrapPglite(client: PGlite | { query: PGlite['query']; exec: PGlite['exe
 
 /** Embedded Postgres + pgvector. `dataDir` undefined = in-memory (tests). */
 export async function pgliteDb(dataDir?: string): Promise<Db> {
-  if (dataDir) fs.mkdirSync(path.dirname(path.resolve(dataDir)), { recursive: true });
-  const db = await deadline(() => PGlite.create(dataDir ? path.resolve(dataDir) : undefined, { extensions: { vector } }), LIMITS.transactionTimeoutMs);
+  const dir = dataDir ? assertAllowedDir(dataDir) : undefined;
+  if (dir) fs.mkdirSync(path.dirname(dir), { recursive: true });
+  const db = await deadline(() => PGlite.create(dir, { extensions: { vector } }), LIMITS.transactionTimeoutMs);
   await deadline(() => db.query("SELECT set_config('statement_timeout', $1, false)", [String(LIMITS.dbTimeoutMs)]), LIMITS.dbTimeoutMs);
   return wrapPglite(db, () => db.close());
 }

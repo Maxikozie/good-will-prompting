@@ -64,5 +64,6 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API
 - [x] Semi-headless Ask view with ElevenLabs voice input (typing fallback)
 - [x] Ask owner by email + owner mailbox (reply = verify), radar as icon + slide-over, Live call view removed
+- [x] Aikido file-inclusion finding: all file reads/writes go through `resolveInside` / `assertAllowedDir` (`packages/brain/src/security/input.ts`); tests: `packages/brain/test/paths.test.ts`, `test/security/paths.test.ts`
 - [ ] Aikido scan + fixes
 - [ ] Video recorded (script: docs/demo-script.md)

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { readYaml, readText, parseYaml, boundText } from '../security/input';
+import { readYaml, readText, parseYaml, boundText, assertAllowedDir, isSafeFileName, resolveInside } from '../security/input';
 import { EvidenceSeedSchema, ReferenceSeedSchema, OrgSeedSchema } from './seed-schemas';
 import {
   evidenceDocId,
@@ -55,7 +55,8 @@ export interface DemoData {
 }
 
 export function loadDemo(dir = DEMO_DIR): DemoData {
-  const orgFile = readYaml(path.join(dir, 'org', 'people.yaml'), OrgSeedSchema);
+  const base = assertAllowedDir(dir);
+  const orgFile = readYaml(resolveInside(base, 'org', 'people.yaml'), OrgSeedSchema);
   const createdAt: string = orgFile.created_at ?? SEED_NOW;
 
   const people: Person[] = orgFile.people.map((p) => ({
@@ -63,10 +64,10 @@ export function loadDemo(dir = DEMO_DIR): DemoData {
   }));
   const expertise: Expertise[] = orgFile.expertise.map((e) => ({ personId: personId(e.person), subject: e.subject, country: e.country, weight: e.weight }));
 
-  const list = (sub: string) => fs.readdirSync(path.join(dir, sub)).filter((f) => f.endsWith('.md')).sort();
+  const list = (sub: string) => fs.readdirSync(resolveInside(base, sub)).filter((f) => isSafeFileName(f, '.md')).sort();
 
   const evidence = list('evidence').map((f) => {
-    const { data, body } = frontmatter(readText(path.join(dir, 'evidence', f)), EvidenceSeedSchema);
+    const { data, body } = frontmatter(readText(resolveInside(base, 'evidence', f)), EvidenceSeedSchema);
     const hash = sha256(body);
     const docId = evidenceDocId(data.id);
     const snapId = evidenceSnapshotId(`snap-${data.id}-${hash.slice(0, 12)}`);
@@ -85,7 +86,7 @@ export function loadDemo(dir = DEMO_DIR): DemoData {
   });
 
   const reference = list('reference').map((f) => {
-    const { data, body } = frontmatter(readText(path.join(dir, 'reference', f)), ReferenceSeedSchema);
+    const { data, body } = frontmatter(readText(resolveInside(base, 'reference', f)), ReferenceSeedSchema);
     const hash = sha256(body);
     const pageId = wikiPageId(data.id);
     const snapId = wikiSnapshotId(`wsnap-${data.id}-${hash.slice(0, 12)}`);

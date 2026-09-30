@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { PageSchema, RawMetaSchema, TaskSchema, QuerySchema } from './input-schemas';
-import { readJson, readText, parseJson, parseYaml, boundText } from '../../packages/brain/src/security/input';
+import { readJson, readText, parseJson, parseYaml, boundText, isSafeFileName, resolveInside } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
-import path from 'node:path';
 import { stringify } from 'yaml';
 import type { QueryLogEntry, Task, WikiPage } from './types';
 import { HASH_RE, META_DIR, PAGE_ID_RE, RAW_DIR, TASK_ID_RE, WIKI_DIR } from './util';
@@ -13,9 +12,10 @@ import { HASH_RE, META_DIR, PAGE_ID_RE, RAW_DIR, TASK_ID_RE, WIKI_DIR } from './
 //   vault/.meta/               tasks.json, queries.log, raw-manifest.json
 // Files are only ever addressed by validated ids/hashes, never by a user-supplied path.
 
-const TASKS_FILE = path.join(META_DIR, 'tasks.json');
-const QUERIES_FILE = path.join(META_DIR, 'queries.log');
-const MANIFEST_FILE = path.join(META_DIR, 'raw-manifest.json');
+// Resolved per call through resolveInside, so a symlink swapped into the vault cannot redirect reads/writes outside it.
+const tasksFile = () => resolveInside(META_DIR, 'tasks.json');
+const queriesFile = () => resolveInside(META_DIR, 'queries.log');
+const manifestFile = () => resolveInside(META_DIR, 'raw-manifest.json');
 
 export interface RawMeta {
   source_id: string;
@@ -47,7 +47,7 @@ export function splitFrontmatter(src: string): { data: Record<string, unknown>; 
 
 function pagePath(id: string): string {
   if (!PAGE_ID_RE.test(id)) throw new Error('Invalid page id');
-  return path.join(WIKI_DIR, `${id}.md`);
+  return resolveInside(WIKI_DIR, `${id}.md`);
 }
 
 function toPage(id: string, src: string): WikiPage {
@@ -62,7 +62,7 @@ export function listPages(): WikiPage[] {
     .filter((f) => f.endsWith('.md'))
     .map((f) => f.slice(0, -3))
     .filter((id) => PAGE_ID_RE.test(id))
-    .map((id) => toPage(id, readText(path.join(WIKI_DIR, `${id}.md`))))
+    .map((id) => toPage(id, readText(pagePath(id))))
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
@@ -82,18 +82,19 @@ export function savePage(page: WikiPage): void {
 // ---------- raw store (content-addressed, write-once) ----------
 
 function readManifest(): Record<string, RawMeta> {
-  if (!fs.existsSync(MANIFEST_FILE)) return {};
-  return readJson(MANIFEST_FILE, z.record(z.string(), RawMetaSchema));
+  const file = manifestFile();
+  if (!fs.existsSync(file)) return {};
+  return readJson(file, z.record(z.string(), RawMetaSchema));
 }
 
 export function putRaw(hash: string, content: string, meta: RawMeta): void {
   if (!HASH_RE.test(hash)) throw new Error('Invalid hash');
-  const file = path.join(RAW_DIR, `${hash}.${meta.ext}`);
+  const file = resolveInside(RAW_DIR, `${hash}.${meta.ext === 'json' ? 'json' : 'md'}`);
   if (!fs.existsSync(file)) fs.writeFileSync(file, content, { encoding: 'utf8', flag: 'wx' });
   const manifest = readManifest();
   if (!manifest[hash]) {
     manifest[hash] = meta;
-    fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2), 'utf8');
+    fs.writeFileSync(manifestFile(), JSON.stringify(manifest, null, 2), 'utf8');
   }
 }
 
@@ -102,7 +103,7 @@ export function getRaw(hash: string): { hash: string; content: string; meta: Raw
   const meta = readManifest()[hash];
   if (!meta) return null;
   const ext = meta.ext === 'json' ? 'json' : 'md';
-  const file = path.join(RAW_DIR, `${hash}.${ext}`);
+  const file = resolveInside(RAW_DIR, `${hash}.${ext}`);
   if (!fs.existsSync(file)) return null;
   return { hash, content: readText(file), meta };
 }
@@ -110,12 +111,13 @@ export function getRaw(hash: string): { hash: string; content: string; meta: Raw
 // ---------- tasks ----------
 
 export function loadTasks(): Task[] {
-  if (!fs.existsSync(TASKS_FILE)) return [];
-  return readJson(TASKS_FILE, z.array(TaskSchema));
+  const file = tasksFile();
+  if (!fs.existsSync(file)) return [];
+  return readJson(file, z.array(TaskSchema));
 }
 
 export function saveTasks(tasks: Task[]): void {
-  fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2), 'utf8');
+  fs.writeFileSync(tasksFile(), JSON.stringify(tasks, null, 2), 'utf8');
 }
 
 export function getTask(id: string): Task | null {
@@ -126,13 +128,14 @@ export function getTask(id: string): Task | null {
 // ---------- query log (gap detection) ----------
 
 export function appendQuery(entry: QueryLogEntry): void {
-  fs.appendFileSync(QUERIES_FILE, JSON.stringify(entry) + '\n', 'utf8');
+  fs.appendFileSync(queriesFile(), JSON.stringify(entry) + '\n', 'utf8');
 }
 
 export function loadQueries(): QueryLogEntry[] {
-  if (!fs.existsSync(QUERIES_FILE)) return [];
+  const file = queriesFile();
+  if (!fs.existsSync(file)) return [];
   return fs
-    .readFileSync(QUERIES_FILE, 'utf8')
+    .readFileSync(file, 'utf8')
     .split('\n')
     .filter(Boolean)
     .flatMap((line) => {
@@ -146,7 +149,7 @@ export function loadQueries(): QueryLogEntry[] {
 
 export function resetMeta(): void {
   if (fs.existsSync(WIKI_DIR)) {
-    for (const f of fs.readdirSync(WIKI_DIR)) if (f.endsWith('.md')) fs.unlinkSync(path.join(WIKI_DIR, f));
+    for (const f of fs.readdirSync(WIKI_DIR)) if (isSafeFileName(f, '.md')) fs.unlinkSync(resolveInside(WIKI_DIR, f));
   }
-  for (const f of [TASKS_FILE, QUERIES_FILE]) if (fs.existsSync(f)) fs.unlinkSync(f);
+  for (const f of [tasksFile(), queriesFile()]) if (fs.existsSync(f)) fs.unlinkSync(f);
 }
