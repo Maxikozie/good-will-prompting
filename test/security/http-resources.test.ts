@@ -26,6 +26,15 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.ok(ready, logs);
+    const assistant = await fetch(`${base}/assistant?q=${encodeURIComponent('Sunday overtime in Belgium?')}`);
+    assert.equal(assistant.status, 200);
+    const found = await assistant.json();
+    assert.ok(found.results.length > 0);
+    const verification = await fetch(`${base}/verify`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'Sunday overtime in Belgium?', sources: found.results.map(({ id, title, location, snippet }: { id: string; title: string; location: string; snippet: string }) => ({ id, title, location, snippet })) }),
+    });
+    assert.equal(verification.status, 200);
+    assert.ok((await verification.json()).sources.length > 0);
     const post = (body: unknown) => fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal((await post({ question: 'Sunday overtime in Belgium?' })).status, 200);
     for (const body of [{ question: 'leave', injected: true }, { question: 'x'.repeat(LIMITS.questionChars + 1) }]) {
