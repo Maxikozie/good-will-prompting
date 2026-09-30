@@ -14,7 +14,8 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
   await new Promise<void>((resolve) => socket.close(() => resolve()));
   const dir = mkdtempSync(join(tmpdir(), 'http-resource-'));
   const child = spawn(process.execPath, ['--import', 'tsx', 'src/api/server.ts', '--prod'], {
-    cwd: process.cwd(), env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TRUSTLAYER_VAULT_DIR: dir }, stdio: ['ignore', 'pipe', 'pipe'],
+    // ANTHROPIC_BASE_URL: regression, a third-party vendor variable must not stop the API from starting.
+    cwd: process.cwd(), env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TRUSTLAYER_VAULT_DIR: dir, ANTHROPIC_BASE_URL: 'https://proxy.example' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let logs = ''; child.stdout.on('data', (b) => { logs += b; }); child.stderr.on('data', (b) => { logs += b; });
   const base = `http://127.0.0.1:${port}/api`;

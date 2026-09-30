@@ -16,10 +16,12 @@ export const EnvSchema = z.object({
   BRAIN_MOCK_OIDC_KEYS: secret.optional(), BRAIN_MOCK_OIDC_ACTIVE_KID: text.optional(), BRAIN_MOCK_OIDC_ISSUER: text.optional(), BRAIN_MOCK_OIDC_AUDIENCE: text.optional(),
 }).strict();
 /** Process environments include OS/tool variables. Validate ALL application-owned names,
- * including unknown names, rather than silently projecting them away. Empty optional placeholders mean unset. */
+ * including unknown names, rather than silently projecting them away. Empty optional placeholders mean unset.
+ * Vendor prefixes (ANTHROPIC_, OLLAMA_, ELEVENLABS_) are shared with other tools, e.g. Claude Code sets
+ * ANTHROPIC_BASE_URL, so only the vendor names listed in EnvSchema are validated there. */
 export function parseEnv(env: NodeJS.ProcessEnv = process.env) {
   const relevant = Object.fromEntries(Object.entries(env).filter(([k]) =>
-    Object.hasOwn(EnvSchema.shape, k) || ['BRAIN_', 'TRUSTLAYER_', 'OLLAMA_', 'ANTHROPIC_', 'ELEVENLABS_'].some((prefix) => k.startsWith(prefix)))
+    Object.hasOwn(EnvSchema.shape, k) || ['BRAIN_', 'TRUSTLAYER_'].some((prefix) => k.startsWith(prefix)))
     .map(([k, v]) => [k, v === '' ? undefined : v]));
   const parsed = EnvSchema.safeParse(relevant);
   if (!parsed.success) throw new Error(`Invalid environment configuration (${parsed.error.issues.map((i) => i.path.join('.') || 'unknown variable').join(', ')})`);

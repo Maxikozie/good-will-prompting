@@ -56,6 +56,10 @@ test('YAML unknown keys, aliases and oversized files fail before use; environmen
   assert.throws(() => readText(file), (err) => err instanceof ResourceError && err.status === 413);
   for (const env of [{ BRAIN_LLM_TIMOUT_MS: '0' }, { BRAIN_LLM_TIMEOUT_MS: '-1' }, { BRAIN_LLM_TIMEOUT_MS: String(LIMITS.llmTimeoutMs + 1) }, { PORT: 'NaN' }]) assert.throws(() => parseEnv(env), /Invalid environment/);
   assert.equal(parseEnv({ PATH: '/normal/os/path', BRAIN_LLM_TIMEOUT_MS: '50' }).BRAIN_LLM_TIMEOUT_MS, 50);
+  // Regression: vendor-prefixed variables set by other tools (Claude Code sets ANTHROPIC_BASE_URL) must not crash startup,
+  // while vendor names the app reads and every app-owned prefix stay validated.
+  assert.equal(parseEnv({ ANTHROPIC_BASE_URL: 'https://proxy.example', OLLAMA_NUM_PARALLEL: '2', ELEVENLABS_VOICE_ID: 'v', BRAIN_LLM_TIMEOUT_MS: '50' }).BRAIN_LLM_TIMEOUT_MS, 50);
+  for (const env of [{ OLLAMA_HOST: 'not a url' }, { TRUSTLAYER_VALT_DIR: '/tmp' }]) assert.throws(() => parseEnv(env), /Invalid environment/);
   assert.throws(() => parseJson('{"a":' + '['.repeat(40) + '0' + ']'.repeat(40) + '}'), ResourceError);
 });
 
