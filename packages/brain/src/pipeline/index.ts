@@ -10,6 +10,7 @@ export { extract } from './20-extract';
 export { align } from './30-align';
 export { gaps } from './40-gaps';
 export { enrich } from './50-enrich';
+export { adjudicate } from './60-adjudicate';
 export * from './bridge';
 
 import { orgRepo } from '../store';
@@ -20,6 +21,7 @@ import { extract } from './20-extract';
 import { align } from './30-align';
 import { gaps } from './40-gaps';
 import { enrich } from './50-enrich';
+import { adjudicate } from './60-adjudicate';
 import type { AgentDocument } from '../evidence';
 import type { PartialScope, RunId } from '../domain';
 
@@ -61,4 +63,11 @@ export async function runThroughEnrich(ctx: PipelineCtx, input: EvidencePhaseInp
   const principals = input.principals ?? (await orgRepo.principalSetFor(ctx.db, input.principalId));
   const e = await enrich(ctx, { runId: through.intake.runId, slotTemplate: through.intake.slotTemplate, principals });
   return { ...through, enrich: e };
+}
+
+/** Stages 00 → 60: everything up to the deterministic verdict on every fact. */
+export async function runThroughAdjudicate(ctx: PipelineCtx, input: EvidencePhaseInput) {
+  const through = await runThroughEnrich(ctx, input);
+  const a = await adjudicate(ctx, { runId: through.intake.runId, slotTemplate: through.intake.slotTemplate });
+  return { ...through, adjudicate: a };
 }

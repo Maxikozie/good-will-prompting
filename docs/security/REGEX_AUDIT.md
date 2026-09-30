@@ -8,8 +8,6 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 
 | Location | Pattern | Assessment |
 | --- | --- | --- |
-| packages/brain/src/security/env.ts:5 | `/^\d+$/` | Fixed/linear pattern or bounded input as described above |
-| test/security/resources.test.ts:57 | `/Invalid environment/` | Controlled test input |
 | packages/brain/src/domain/brain-nodes.ts:82 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/claim.ts:48 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/evidence-nodes.ts:32 | `/^[a-f0-9]{64}$/` | Fixed/linear pattern or bounded input as described above |
@@ -59,6 +57,7 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/src/reference/retrieval.ts:32 | `/\p{M}/gu` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/reference/sections.ts:12 | `/^# (.+)$/m` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/reference/sections.ts:13 | `/^## (.+)$/m` | Fixed/linear pattern or bounded input as described above |
+| packages/brain/src/security/env.ts:5 | `/^\d+$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/store/migrate.ts:12 | `/^\d+_.+\.sql$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/store/seed.ts:42 | `/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/test/gaps.test.ts:26 | `/required/` | Controlled test input |
@@ -72,6 +71,7 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/helpers/demo-extraction.ts:74 | `/^## (.+)$/m` | Controlled test input |
 | packages/brain/test/keys.test.ts:61 | `/^[a-f0-9]{40}$/` | Controlled test input |
 | packages/brain/test/keys.test.ts:81 | `/^[a-f0-9]{40}$/` | Controlled test input |
+| packages/brain/test/ladder.test.ts:35 | `/^[a-f0-9]{16}$/` | Controlled test input |
 | packages/brain/test/llm.fake.test.ts:29 | `/brain:record/` | Controlled test input |
 | packages/brain/test/llm.fake.test.ts:36 | `/no longer matches the schema/` | Controlled test input |
 | packages/brain/test/llm.fake.test.ts:38 | `/fails its check/` | Controlled test input |
@@ -121,8 +121,8 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/migrate.test.ts:59 | `/\(run_id\)/` | Controlled test input |
 | packages/brain/test/migrate.test.ts:86 | `/immutable/` | Controlled test input |
 | packages/brain/test/migrate.test.ts:87 | `/immutable/` | Controlled test input |
-| packages/brain/test/pipeline.test.ts:118 | `/^## (.+)$/m` | Controlled test input |
-| packages/brain/test/pipeline.test.ts:345 | `/No LLM fixture/` | Controlled test input |
+| packages/brain/test/pipeline.test.ts:119 | `/^## (.+)$/m` | Controlled test input |
+| packages/brain/test/pipeline.test.ts:346 | `/No LLM fixture/` | Controlled test input |
 | packages/brain/test/reference.test.ts:33 | `/klein verlet&#124;verlof&#124;huwelijk/` | Controlled test input |
 | packages/brain/test/reference.test.ts:34 | `/wettelijke basis&#124;koninklijk besluit&#124;cao&#124;legal/` | Controlled test input |
 | packages/brain/test/reference.test.ts:41 | `/PC 200&#124;België/` | Controlled test input |
@@ -136,6 +136,9 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/stage30-40.test.ts:117 | `/optional/` | Controlled test input |
 | packages/brain/test/stage30-40.test.ts:192 | `/No LLM fixture/` | Controlled test input |
 | packages/brain/test/stage50.test.ts:216 | `/evidence_snapshot,wiki_(section&#124;snapshot)/` | Controlled test input |
+| packages/brain/test/stage60.test.ts:213 | `/from\s+['"][^'"]*\/llm(?:\/&#124;['"])/` | Controlled test input |
+| packages/brain/test/stage60.test.ts:217 | `/ctx\.(llm&#124;embedder)/` | Controlled test input |
+| packages/brain/test/stage60.test.ts:250 | `/ladder must be exactly/` | Controlled test input |
 | packages/brain/test/store.test.ts:67 | `/Wanneer op te nemen/` | Controlled test input |
 | packages/brain/test/store.test.ts:68 | `/\s+/` | Controlled test input |
 | packages/brain/test/store.test.ts:78 | `/Wanneer op te nemen&#124;4 weken/` | Controlled test input |
@@ -176,7 +179,9 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | test/security/mcp.test.ts:152 | `/owner-jti&#124;token_jti/` | Controlled test input |
 | test/security/mcp.test.ts:252 | `/429 Rate limit exceeded/` | Controlled test input |
 | test/security/mcp.test.ts:255 | `/429 Rate limit exceeded/` | Controlled test input |
+| test/security/resources.test.ts:57 | `/Invalid environment/` | Controlled test input |
 | test/security/verification.test.ts:33 | `/Invalid BRAIN_JWT configuration/` | Controlled test input |
 | test/security/verification.test.ts:76 | `/disabled in production/` | Controlled test input |
 | test/security/verification.test.ts:121 | `/immutable/` | Controlled test input |
 | test/security/verification.test.ts:140 | `/action failed/` | Controlled test input |
+| web/src/views/Mail.tsx:108 | `/\s+/g` | Fixed/linear pattern or bounded input as described above |

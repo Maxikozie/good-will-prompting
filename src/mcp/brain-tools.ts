@@ -19,7 +19,7 @@ const ingestSchema = z.object({ pages: z.array(z.object({ id, text: z.string().m
 
 export interface BrainOperations {
   // Deliberately no default/stub implementations. Register only when the actual pipeline/verification service is available.
-  // Implementations use the provided transaction and principal, and never read identity from tool input.
+  // Implementations use the provided database and principal, and never read identity from tool input.
   analyzeCase(db: Db, input: z.infer<typeof analyzeSchema>, principal: Principal): Promise<unknown>;
   getVerdict(db: Db, runId: string): Promise<unknown>;
   explainFact(db: Db, factId: string): Promise<unknown>;

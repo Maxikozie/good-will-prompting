@@ -6,6 +6,7 @@ import { claimKey, runId, type Edge, type RunId } from '../src/domain';
 import { splitPassages } from '../src/evidence';
 import { FakeEmbedder, FakeProvider, LLMValidationError, MissingFixtureError, DEFAULT_FIXTURE_DIR, extractEvidenceTask, intakeTask, type CompleteOpts, type LLMProvider, type Message } from '../src/llm';
 import { DEMO_QUESTION } from '../src/llm/record';
+import { rulesVersion } from '../src/rules';
 import { createContext, extract, intake, runEvidencePhase, snapshot, type PipelineCtx } from '../src/pipeline';
 import { brainRepo, count, edgeRepo, evidenceRepo, pgliteDb, type Db } from '../src/store';
 import { loadDemo, seedDemo } from '../src/store/seed';
@@ -65,7 +66,7 @@ describe('the demo run (A–D, asked by Nina)', () => {
       expect(intent).toMatchObject({ subject: 'leave.small_leave.own_marriage', generatedSlots: false, slotTemplateId: 'leave.small_leave.own_marriage', questionType: 'rule', scope: { country: 'BE', jointCommittee: 'PC 200', employeeCategory: 'bediende' } });
       expect(slotTemplate.slots.map((s) => s.id)).toEqual(['duration', 'eligibility', 'timing_window', 'pay_continuation', 'proof_required', 'legal_basis', 'effective_from']);
       const run = (await brainRepo.getRun(db, RUN))!;
-      expect(run).toMatchObject({ question: DEMO_QUESTION, principalId: NINA, status: 'running', rulesVersion: '0-dev', modelIds: { llm: 'fake', embedder: 'fake-hash-768' }, startedAt: NOW.toISOString() });
+      expect(run).toMatchObject({ question: DEMO_QUESTION, principalId: NINA, status: 'running', rulesVersion: rulesVersion(), modelIds: { llm: 'fake', embedder: 'fake-hash-768' }, startedAt: NOW.toISOString() });
       expect(run.promptVersions).toMatchObject({ intake: 'intake.v1', 'extract-evidence': 'extract-evidence.v1' });
       expect(run.intent).toEqual(intent);
     });

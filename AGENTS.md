@@ -37,16 +37,17 @@ Mock data, hardcoded values and fake auth are fine. Label mocks clearly in code 
 Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod · API: Express 5 · Dashboard: Vite + React 19 + Tailwind v4 · Vault: plain markdown + YAML (`yaml`). No LLM at runtime: trust scoring is deterministic, claims are pre-extracted in `data/mock/claims-cache.json`.
 
 ## Run
-- `npm install && npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
+- **Install first, after every pull:** `npm run setup` (root + `packages/brain`, two separate packages). Details, `.env` and agent rules: [brain/setup.md](brain/setup.md)
+- `npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
 - `npm run mcp` → MCP server on authenticated local stdio (configure `.env` per `docs/security/MCP_AUTH.md`) (Claude Code: `.mcp.json` is in the repo root)
-- `npm run ingest` → rebuild the vault from `data/mock` (same as "Reset demo" in the dashboard)
+- `npm run ingest` → rebuild the vault from `data/mock` (same as the reset icon in the dashboard)
 - `npm run typecheck`
 
 ## Structure & ownership
 - `data/mock/`: MOCK sources (SharePoint md, Teams/email json, HR directory, existing-assistant answers, claims cache)
 - `src/core/`: `types.ts` is the shared contract. ingest, trust scoring (`trust.ts`), health radar (`health.ts`), fix loop (`tasks.ts`), experts, zod schemas
 - `src/mcp/server.ts`: the 6 MCP tools. `src/api/server.ts`: Express API + Vite middleware
-- `web/`: dashboard. Default = semi-headless Ask view (`views/Ask.tsx`: input + mic bottom-centre, Claude-plugin look). Radar / Inbox / Reset are faint links top right; old Live call view at `#live`
+- `web/`: two screens. **Ask** (`views/Ask.tsx`, the spotlight): input + mic bottom-centre, Claude-plugin look; radar icon (live score) opens `views/RadarPanel.tsx`; "Email <owner>" drafts the question as an email. **Mail** (`views/Mail.tsx`, `#mail`): the owner mailbox; replying resolves the task. Mail is MOCK (a fix task, nothing is sent), see `web/src/mail.ts`
 - `POST /api/transcribe`: ElevenLabs speech-to-text proxy (key server-side only)
 - `vault/`: generated, gitignored. Never edit by hand, run `npm run ingest`
 - Maximilian: initial MVP (all folders)
@@ -62,5 +63,6 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - [x] Project scaffold running
 - [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API
 - [x] Semi-headless Ask view with ElevenLabs voice input (typing fallback)
+- [x] Ask owner by email + owner mailbox (reply = verify), radar as icon + slide-over, Live call view removed
 - [ ] Aikido scan + fixes
 - [ ] Video recorded (script: docs/demo-script.md)

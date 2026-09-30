@@ -138,3 +138,18 @@ test('stdio transport rejects oversized frames before parsing JSON', async () =>
   await transport.close();
   input.destroy(); output.destroy();
 });
+
+test('database enforces a configured statement deadline', async () => {
+  const result = await db.query<{ ms: number }>("SELECT setting::integer AS ms FROM pg_settings WHERE name = 'statement_timeout'");
+  assert.equal(result.rows[0]?.ms, LIMITS.dbTimeoutMs);
+});
+
+test('new adjudication YAML rejects unknown top-level and per-rule settings', async () => {
+  const { loadRules, RULES_FILE } = await import('../../packages/brain/src/rules/ladder-config');
+  const original = readFileSync(RULES_FILE, 'utf8');
+  const file = join(dir, 'rules-invalid.yaml');
+  writeFileSync(file, original + '\nignoreAcl: true\n');
+  assert.throws(() => loadRules(file), z.ZodError);
+  writeFileSync(file, original.replace('strongTier:', 'ignoreAcl: true\n      strongTier:'));
+  assert.throws(() => loadRules(file));
+});

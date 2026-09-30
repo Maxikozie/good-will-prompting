@@ -15,9 +15,15 @@ export const ScoringConfigSchema = z.object({
   ownership: z.object({ active: unit, inactive: unit, none: unit }).strict(),
   consensusPerGroup: unit,
   conflictPenalty: z.object({ high: z.number().min(0), medium: z.number().min(0), low: z.number().min(0), max: z.number().min(0) }).strict(),
-  gates: z.object({ expired: z.number(), superseded: z.number(), invalidated: z.number(), not_a_rule: z.number() }).strict(),
+  gates: z.object({ expired: z.number(), superseded: z.number(), invalidated: z.number(), not_a_rule: z.number(), duplicate_older: z.number() }).strict(),
   bands: z.object({ trusted: z.number(), careful: z.number() }).strict(),
   weakSupport: z.object({ scoreBelow: z.number(), lowAuthorityBelow: unit }).strict(),
+  halfLifeDays: z.number().positive(),
+  reference: z.object({ verifiedTier: z.enum(['T0', 'T1', 'T2', 'T3', 'T4']) }).strict(),
+  integrity: z.object({ neverVerified: unit, unknownDrift: unit }).strict(),
+  usage: z.object({ neutral: unit }).strict(),
+  corroboration: z.object({ bonus: z.number().min(0), forFullBonus: z.number().positive() }).strict(),
+  scopeFit: z.object({ exact: unit, parent: unit, productUnknown: unit, otherCountry: unit }).strict(),
 }).strict();
 export type ScoringConfig = z.infer<typeof ScoringConfigSchema>;
 

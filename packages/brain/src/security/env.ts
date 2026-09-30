@@ -19,7 +19,7 @@ export const EnvSchema = z.object({
  * including unknown names, rather than silently projecting them away. Empty optional placeholders mean unset. */
 export function parseEnv(env: NodeJS.ProcessEnv = process.env) {
   const relevant = Object.fromEntries(Object.entries(env).filter(([k]) =>
-    k in EnvSchema.shape || ['BRAIN_', 'TRUSTLAYER_', 'OLLAMA_', 'ANTHROPIC_', 'ELEVENLABS_'].some((prefix) => k.startsWith(prefix)))
+    Object.hasOwn(EnvSchema.shape, k) || ['BRAIN_', 'TRUSTLAYER_', 'OLLAMA_', 'ANTHROPIC_', 'ELEVENLABS_'].some((prefix) => k.startsWith(prefix)))
     .map(([k, v]) => [k, v === '' ? undefined : v]));
   const parsed = EnvSchema.safeParse(relevant);
   if (!parsed.success) throw new Error(`Invalid environment configuration (${parsed.error.issues.map((i) => i.path.join('.') || 'unknown variable').join(', ')})`);

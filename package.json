@@ -5,6 +5,7 @@
   "type": "module",
   "description": "TrustLayer: an MCP trust layer for SD Worx knowledge (Tectonic Hackathon Ghent)",
   "scripts": {
+    "setup": "npm install && npm --prefix packages/brain install",
     "dev": "tsx watch --clear-screen=false src/api/server.ts",
     "mcp": "tsx src/mcp/stdio.ts",
     "ingest": "tsx src/core/ingest-cli.ts",
