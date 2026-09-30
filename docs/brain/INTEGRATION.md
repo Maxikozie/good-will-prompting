@@ -118,9 +118,11 @@ No wiki connector exists. Today `WikiPage` in this repo means "vault page" for *
 
 ## MCP security integration (2026-09-30)
 
-Use `createMcpServer(session, {db, operations})` and the guarded registrations in
+Use `createMcpServer(session, {db, operations, verification})` and the guarded registrations in
 `src/mcp/brain-tools.ts` when connecting the pipeline. See
 [the MCP authentication contract](../security/MCP_AUTH.md). Any earlier example
 passing `principalId` as tool input is superseded: identity comes exclusively from
 the authenticated server session. Supply the complete business-service interface;
 the local executable currently registers only the six implemented legacy tools.
+
+Verification crypto and atomic token use now live in `src/verification/`; construct `VerificationService` from environment configuration at backend startup. See [token integration](../security/VERIFICATION_TOKENS.md).

@@ -147,7 +147,12 @@ const requestFromRow = (r: Row): VerificationRequest =>
   parseRow(VerificationRequestSchema, { id: r.id, ...ns(r), factId: r.fact_id, requestedFromId: r.requested_from_id, reason: r.reason, status: r.status, tokenJti: r.token_jti, expiresAt: isoReq(r.expires_at) });
 
 export async function saveVerificationRequest(db: Db, v: VerificationRequest): Promise<void> {
-  await upsert(db, 'brain.verification_request', { id: v.id, fact_id: v.factId, requested_from_id: v.requestedFromId, reason: v.reason, status: v.status, token_jti: v.tokenJti, expires_at: v.expiresAt, created_at: v.createdAt }, ['id']);
+  // Issuance is insert-only: re-saving an old request must never reopen a spent token.
+  if (v.status !== 'pending') throw new Error('New verification requests must be pending');
+  await db.query(
+    `INSERT INTO brain.verification_request (id, fact_id, requested_from_id, reason, status, token_jti, expires_at, created_at) VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)`,
+    [v.id, v.factId, v.requestedFromId, v.reason, v.tokenJti, v.expiresAt, v.createdAt],
+  );
 }
 
 export async function getVerificationRequest(db: Db, id: string): Promise<VerificationRequest | null> {
@@ -168,9 +173,9 @@ export async function listVerificationRequests(db: Db, opts: { personId?: string
   return r.rows.map(requestFromRow);
 }
 
-/** Single-use token: returns true only for the call that flips pending → completed (the jti is burned atomically). */
+/** Single-use token: call with the same transaction used for the action and audit. No pre-read/check-then-act. */
 export async function burnToken(db: Db, jti: string): Promise<boolean> {
-  const r = await db.query(`UPDATE brain.verification_request SET status = 'completed' WHERE token_jti = $1 AND status = 'pending' AND expires_at > now() RETURNING id`, [jti]);
+  const r = await db.query(`UPDATE brain.verification_request SET used_at = now(), status = 'completed' WHERE token_jti = $1 AND used_at IS NULL AND status = 'pending' AND expires_at > now() RETURNING id`, [jti]);
   return r.rows.length === 1;
 }
 

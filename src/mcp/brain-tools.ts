@@ -3,19 +3,14 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Db } from '../../packages/brain/src/store/db';
 import { authorize, Forbidden, type Action, type Principal } from '../security/authorization';
 import { authorizeFact, authorizeRun } from '../security/brain-access';
+import { submissionSchema, VerificationService } from '../verification/service';
+import type { VerifiedToken } from '../verification/tokens';
 
 const id = z.string().trim().min(1).max(200);
 const analyzeSchema = z.object({ question: z.string().trim().min(3).max(1000), documents: z.array(z.object({ id }).strict()).min(1).max(50) }).strict();
-const submitSchema = z.object({ token: z.string().min(1).max(8192), action: z.enum(['confirm', 'correct', 'rescope', 'reassign', 'reject']), payload: z.record(z.string(), z.unknown()).optional() }).strict();
+const submitSchema = submissionSchema;
 // Source metadata/ACLs must come from the trusted connector in ingestReference, never wiki text.
 const ingestSchema = z.object({ pages: z.array(z.object({ id, text: z.string().max(100_000) }).strict()).min(1).max(50) }).strict();
-
-export interface VerifiedToken {
-  jti: string; factId: string; verifierId: string; allowedActions: readonly string[]; expiresAt: number;
-}
-const verifiedTokenSchema = z.object({
-  jti: id, factId: id, verifierId: id, allowedActions: z.array(id).max(5), expiresAt: z.number().finite(),
-}).strict();
 
 export interface BrainOperations {
   // Deliberately no default/stub implementations. Register only when the actual pipeline/verification service is available.
@@ -23,14 +18,12 @@ export interface BrainOperations {
   analyzeCase(db: Db, input: z.infer<typeof analyzeSchema>, principal: Principal): Promise<unknown>;
   getVerdict(db: Db, runId: string): Promise<unknown>;
   explainFact(db: Db, factId: string): Promise<unknown>;
-  /** Must cryptographically verify signature, issuer, audience and expiry before returning bindings. */
-  verifyToken(token: string): Promise<VerifiedToken>;
-  /** Recheck can_verify/four-eyes and consume the token atomically with mutation and audit in this transaction. */
+  /** Apply the action/audit using this transaction. Preserve four-eyes and self-verification tiers. The wrapper owns crypto, can_verify and atomic burn. */
   submitVerification(db: Db, input: z.infer<typeof submitSchema>, principal: Principal, token: VerifiedToken): Promise<unknown>;
   ingestReference(db: Db, input: z.infer<typeof ingestSchema>, principal: Principal): Promise<unknown>;
   health(db: Db, input: { domain?: string; country?: string }): Promise<unknown>;
 }
-export interface BrainToolDependencies { db: Db; operations: BrainOperations }
+export interface BrainToolDependencies { db: Db; operations: BrainOperations; verification: VerificationService }
 
 /** The sole registration boundary for all seven Brain tools. Identity is captured from the authenticated transport. */
 export function registerBrainTools(server: McpServer, principal: Principal, deps: BrainToolDependencies): void {
@@ -83,20 +76,9 @@ export function registerBrainTools(server: McpServer, principal: Principal, deps
     }
     return visible;
   });
-  register('brain_submit_verification', submitSchema.shape, async (tx, input) => {
-    let token: VerifiedToken;
-    try { token = verifiedTokenSchema.parse(await deps.operations.verifyToken(input.token)); } catch { throw new Forbidden(); }
-    if (token.verifierId !== principal.personId || token.expiresAt <= Date.now() || !token.allowedActions.includes(input.action)) throw new Forbidden();
-    authorize(principal, 'brain_submit_verification', { kind: 'service' });
-    const rows = await tx.query<{ fact_id: string; requested_from_id: string }>(
-      "SELECT fact_id, requested_from_id FROM brain.verification_request WHERE token_jti = $1 AND status = 'pending' AND expires_at > now()", [token.jti],
-    );
-    const request = rows.rows[0];
-    if (!request || request.fact_id !== token.factId || request.requested_from_id !== principal.personId) throw new Forbidden();
-    const run = await authorizeFact(tx, principal, 'brain_submit_verification', request.fact_id);
-    authorize(principal, 'brain_submit_verification', { kind: 'verification', requestedFrom: request.requested_from_id, run });
-    return deps.operations.submitVerification(tx, input, principal, token);
-  });
+  register('brain_submit_verification', submitSchema.shape, (tx, input) =>
+    deps.verification.submit(tx, input, principal, (transaction, submission, caller, token) =>
+      deps.operations.submitVerification(transaction, submission, caller, token)));
   register('brain_ingest_reference', ingestSchema.shape, (tx, input) => deps.operations.ingestReference(tx, input, principal));
   register('brain_health', { domain: id.optional(), country: id.optional() }, (tx, input) => deps.operations.health(tx, input));
 }

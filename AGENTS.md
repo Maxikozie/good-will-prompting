@@ -55,6 +55,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - Casper:
 
 ## Status
+- [x] Brain verification JWT validation, key rotation, transactional single use and production mock-issuer guard (`docs/security/VERIFICATION_TOKENS.md`)
 - [x] MCP session identity, central deny-by-default authorization and Brain IDOR registration guards; regression tests: `npm run test:security`
 - [x] Security threat model and baseline findings documented (remediation status in `docs/security/FINDINGS.md`)
 - [x] Project scaffold running

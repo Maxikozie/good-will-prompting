@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
+import { VerificationTokens } from '../../src/verification/tokens';
+import { VerificationService } from '../../src/verification/service';
 import { after, before, test } from 'node:test';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -26,26 +29,22 @@ const calls: string[] = [];
 const demo = loadDemo();
 const now = '2026-09-30T19:00:00Z';
 
+const tokenEnv = { BRAIN_JWT_KEYS: JSON.stringify({ test: randomBytes(32).toString('base64') }), BRAIN_JWT_ACTIVE_KID: 'test', BRAIN_JWT_ISSUER: 'test-issuer', BRAIN_JWT_AUDIENCE: 'test-verification' };
+const tokens = new VerificationTokens(tokenEnv);
+const verification = new VerificationService(tokenEnv);
+const ownerToken = await tokens.issue({ factId: 'fact-owner', verifierId: owner.personId, allowedActions: ['confirm'] });
+const ownerBinding = await tokens.verify(ownerToken);
 const operations: BrainOperations = {
   async analyzeCase(_tx, _input, principal) { calls.push('analyze'); return { startedBy: principal.id }; },
   async getVerdict(tx, runId) { calls.push('verdict'); return { run: await brainRepo.getRun(tx, runId), facts: await brainRepo.listFacts(tx, runId) }; },
   async explainFact(tx, factId) { calls.push('fact'); return brainRepo.getFact(tx, factId); },
-  // Test transport/service fixture only. No fake token verification is used by the executable server.
-  async verifyToken(token) {
-    if (token !== 'signed-owner-token') throw new Error('invalid token');
-    return { jti: 'owner-jti', factId: 'fact-owner', verifierId: owner.personId, allowedActions: ['confirm'], expiresAt: Date.now() + 60_000 };
-  },
-  async submitVerification(tx, _input, principal, token) {
-    calls.push('submit');
-    if (!await brainRepo.burnToken(tx, token.jti)) throw new Forbidden();
-    return { verifiedBy: principal.id };
-  },
+  async submitVerification(_tx, _input, principal) { calls.push('submit'); return { verifiedBy: principal.id }; },
   async ingestReference(_tx, _input, principal) { calls.push('ingest'); return { ingestedBy: principal.id }; },
   async health() { calls.push('health'); return { score: 100 }; },
 };
 
 async function clientFor(principal: Principal, withBrain = false, database = db) {
-  const server = createMcpServer({ principal, legacyVaultReaders: ['group:demo'] }, withBrain ? { db: database, operations } : undefined);
+  const server = createMcpServer({ principal, legacyVaultReaders: ['group:demo'] }, withBrain ? { db: database, operations, verification } : undefined);
   const client = new Client({ name: 'security-regression', version: '1' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
@@ -73,9 +72,10 @@ before(async () => {
     claimKey: 'a'.repeat(40), subject: 'leave', attribute: 'duration', scope: { country: 'BE' }, status: 'LIKELY', confidence: 80,
     reasons: [], needsVerification: true, impact: 'high',
   });
+  await db.query('INSERT INTO org.expertise (person_id, subject, country, weight) VALUES ($1,$2,$3,$4)', [owner.personId, 'leave', 'BE', 0.9]);
   await brainRepo.saveVerificationRequest(db, {
     id: 'request-owner' as never, namespace: 'brain', createdAt: now, factId: 'fact-owner' as never, requestedFromId: owner.personId as never,
-    reason: 'Private verification reason', status: 'pending', tokenJti: 'owner-jti', expiresAt: '2099-01-01T00:00:00Z',
+    reason: 'Private verification reason', status: 'pending', tokenJti: ownerBinding.jti, expiresAt: '2099-01-01T00:00:00Z',
   });
 });
 after(async () => { await db?.close(); fs.rmSync(scratch, { recursive: true, force: true }); });
@@ -135,7 +135,7 @@ const brainInputs: Record<string, Record<string, unknown>> = {
   brain_get_verdict: { runId: 'run-owner' },
   brain_explain_fact: { factId: 'fact-owner' },
   brain_list_verifications: {},
-  brain_submit_verification: { token: 'signed-owner-token', action: 'confirm' },
+  brain_submit_verification: { token: ownerToken, action: 'confirm' },
   brain_ingest_reference: { pages: [{ id: 'wiki-test', text: 'Synthetic wiki content' }] },
   brain_health: {},
 };
@@ -236,7 +236,7 @@ test('cross-run graph edges cannot smuggle another run into an explanation', asy
 });
 
 test('verification rejects a spent token, wrong action and invalid token with the same denial', async () => {
-  for (const input of [{ token: 'signed-owner-token', action: 'confirm' }, { token: 'signed-owner-token', action: 'reject' }, { token: 'invalid-token', action: 'confirm' }]) {
+  for (const input of [{ token: ownerToken, action: 'confirm' }, { token: ownerToken, action: 'reject' }, { token: 'invalid-token', action: 'confirm' }]) {
     assert.deepEqual(await invoke(owner, 'brain_submit_verification', input, true), forbidden);
   }
 });
