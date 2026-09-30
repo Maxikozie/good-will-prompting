@@ -65,3 +65,27 @@ export const ExtractOutputSchema = z.object({
   claimsByDocument: z.record(z.string(), z.number().int().min(0)),
 });
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
+
+export const AlignInputSchema = z.object({ runId: RunIdSchema, slotTemplate: SlotTemplateSchema }).strict();
+export type AlignInput = z.infer<typeof AlignInputSchema>;
+
+export const AlignOutputSchema = z.object({
+  runId: RunIdSchema,
+  factIds: z.array(z.string()),
+  /** Facts that answer the query scope (status is decided in stage 60). */
+  inScopeFactIds: z.array(z.string()),
+  /** Claims outside the query scope: kept in the graph, rejected with SCOPE_MISMATCH. */
+  scopeMismatchClaimIds: z.array(z.string()),
+  relations: z.record(z.string(), z.number().int().min(0)),
+});
+export type AlignOutput = z.infer<typeof AlignOutputSchema>;
+
+export const GapsInputSchema = z.object({ runId: RunIdSchema, slotTemplate: SlotTemplateSchema }).strict();
+export type GapsInput = z.infer<typeof GapsInputSchema>;
+
+export const GapsOutputSchema = z.object({
+  runId: RunIdSchema,
+  gapIds: z.array(z.string()),
+  gapsByType: z.record(z.string(), z.number().int().min(0)),
+});
+export type GapsOutput = z.infer<typeof GapsOutputSchema>;

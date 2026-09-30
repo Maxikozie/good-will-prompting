@@ -33,7 +33,12 @@ export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 export const RelationSchema = z.enum(['agree', 'contradict', 'refine', 'supersede', 'scope_disjoint', 'unrelated']);
 export type Relation = z.infer<typeof RelationSchema>;
 
-export const RelationOutputSchema = z.object({ relation: RelationSchema, explanation: z.string().min(1).max(300) });
+export const RelationOutputSchema = z.object({
+  relation: RelationSchema,
+  explanation: z.string().min(1).max(300),
+  /** For "refine": the more specific claim; for "supersede": the newer claim that replaces the other. Otherwise null. */
+  direction: z.enum(['a', 'b']).nullable().default(null),
+});
 export type RelationOutput = z.infer<typeof RelationOutputSchema>;
 
 export const ComposeOutputSchema = z.object({ sentences: z.array(z.object({ factId: z.string().min(1).max(200), text: z.string().min(1).max(600) })).max(30) });

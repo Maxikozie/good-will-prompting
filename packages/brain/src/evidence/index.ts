@@ -3,7 +3,9 @@
 // src/pipeline only orchestrate these functions.
 export * from './acl';
 export * from './adapter';
+export * from './align';
 export * from './duplicates';
 export * from './extract';
+export * from './independence';
 export * from './passages';
 export * from './simhash';

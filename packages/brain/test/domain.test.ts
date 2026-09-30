@@ -96,6 +96,13 @@ describe('Edge (discriminated union on type)', () => {
     expect(EdgeSchema.safeParse({ ...edge, type: 'OWNS', fromKind: 'fact', toKind: 'wiki_page', props: { since: NOW } }).success).toBe(false);
   });
 
+  it('MEMBER_OF carries an optional reason code; relation edges may record how they were decided', () => {
+    expect(EdgeSchema.safeParse({ ...edge, type: 'MEMBER_OF', fromKind: 'evidence_claim', toKind: 'fact', props: { role: 'rejected', reason: 'SCOPE_MISMATCH' } }).success).toBe(true);
+    expect(EdgeSchema.safeParse({ ...edge, type: 'MEMBER_OF', fromKind: 'evidence_claim', toKind: 'fact', props: { role: 'rejected', reason: 'MADE_UP' } }).success).toBe(false);
+    expect(EdgeSchema.safeParse({ ...edge, type: 'AGREES', fromKind: 'evidence_claim', toKind: 'evidence_claim', props: { similarity: 0.9, method: 'llm', explanation: 'zelfde termijn' } }).success).toBe(true);
+    expect(EdgeSchema.safeParse({ ...edge, type: 'AGREES', fromKind: 'evidence_claim', toKind: 'evidence_claim', props: { similarity: 0.9, method: 'guess' } }).success).toBe(false);
+  });
+
   it('rejects an unknown type', () => {
     expect(EdgeSchema.safeParse({ ...edge, type: 'LIKES', fromKind: 'fact', toKind: 'fact', props: {} }).success).toBe(false);
   });

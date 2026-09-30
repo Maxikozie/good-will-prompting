@@ -5,12 +5,16 @@ export * from './types';
 export { intake } from './00-intake';
 export { snapshot } from './10-snapshot';
 export { extract } from './20-extract';
+export { align } from './30-align';
+export { gaps } from './40-gaps';
 
 import { orgRepo } from '../store';
 import type { PipelineCtx } from './context';
 import { intake } from './00-intake';
 import { snapshot } from './10-snapshot';
 import { extract } from './20-extract';
+import { align } from './30-align';
+import { gaps } from './40-gaps';
 import type { AgentDocument } from '../evidence';
 import type { PartialScope, RunId } from '../domain';
 
@@ -31,4 +35,13 @@ export async function runEvidencePhase(ctx: PipelineCtx, input: EvidencePhaseInp
   const s = await snapshot(ctx, { runId: i.runId, principals, documents: input.documents });
   const x = await extract(ctx, { runId: i.runId, snapshotIds: s.documents.map((d) => d.snapshotId), slotTemplate: i.slotTemplate });
   return { intake: i, snapshot: s, extract: x };
+}
+
+/** Stages 00 → 10 → 20 → 30 → 40: everything up to gap detection. */
+export async function runThroughGaps(ctx: PipelineCtx, input: EvidencePhaseInput) {
+  const phase = await runEvidencePhase(ctx, input);
+  const slotTemplate = phase.intake.slotTemplate;
+  const a = await align(ctx, { runId: phase.intake.runId, slotTemplate });
+  const g = await gaps(ctx, { runId: phase.intake.runId, slotTemplate });
+  return { ...phase, align: a, gaps: g };
 }

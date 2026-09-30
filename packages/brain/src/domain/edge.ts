@@ -5,6 +5,7 @@ import {
   EDGE_TYPES,
   IsoStringSchema,
   MemberRoleSchema,
+  ReasonCodeSchema,
   SeveritySchema,
   SupersedeBasisSchema,
   TierSchema,
@@ -34,20 +35,22 @@ function edge<T extends string, F extends NodeKind, K extends NodeKind, P extend
 const CLAIM_KINDS = ['evidence_claim', 'reference_fact'] as const satisfies readonly NodeKind[];
 const SNAPSHOT_KINDS = ['evidence_snapshot', 'wiki_snapshot'] as const satisfies readonly NodeKind[];
 const score = z.object({ score: z.number().min(0).max(1) });
+// Relation edges may carry how they were decided (code or LLM) and a one-sentence explanation (mandatory for LLM decisions on text).
+const how = { method: z.enum(['rule', 'llm']).optional(), explanation: z.string().min(1).max(500).optional() };
 const methodScore = z.object({ method: z.enum(['simhash', 'cosine', 'link', 'exact']), score: z.number().min(0).max(1) });
 
 export const AssertsEdgeSchema = edge('ASSERTS', SNAPSHOT_KINDS, CLAIM_KINDS, z.object({ span: SpanSchema }));
-export const MemberOfEdgeSchema = edge('MEMBER_OF', CLAIM_KINDS, ['fact'], z.object({ role: MemberRoleSchema }));
-export const AgreesEdgeSchema = edge('AGREES', CLAIM_KINDS, CLAIM_KINDS, z.object({ similarity: z.number().min(0).max(1) }));
+export const MemberOfEdgeSchema = edge('MEMBER_OF', CLAIM_KINDS, ['fact'], z.object({ role: MemberRoleSchema, reason: ReasonCodeSchema.optional() }));
+export const AgreesEdgeSchema = edge('AGREES', CLAIM_KINDS, CLAIM_KINDS, z.object({ similarity: z.number().min(0).max(1), ...how }));
 export const ContradictsEdgeSchema = edge(
   'CONTRADICTS',
   CLAIM_KINDS,
   CLAIM_KINDS,
-  z.object({ type: ConflictTypeSchema, severity: SeveritySchema, explanation: z.string().min(1).max(500) }),
+  z.object({ type: ConflictTypeSchema, severity: SeveritySchema, explanation: z.string().min(1).max(500), method: how.method }),
 );
-export const RefinesEdgeSchema = edge('REFINES', CLAIM_KINDS, CLAIM_KINDS, z.object({ addedQualifiers: z.array(z.string().max(100)) }));
-export const SupersedesEdgeSchema = edge('SUPERSEDES', CLAIM_KINDS, CLAIM_KINDS, z.object({ basis: SupersedeBasisSchema }));
-export const ScopeDisjointEdgeSchema = edge('SCOPE_DISJOINT', CLAIM_KINDS, CLAIM_KINDS, z.object({ differingScopeKeys: z.array(z.string().max(50)).min(1) }));
+export const RefinesEdgeSchema = edge('REFINES', CLAIM_KINDS, CLAIM_KINDS, z.object({ addedQualifiers: z.array(z.string().max(100)), ...how }));
+export const SupersedesEdgeSchema = edge('SUPERSEDES', CLAIM_KINDS, CLAIM_KINDS, z.object({ basis: SupersedeBasisSchema, ...how }));
+export const ScopeDisjointEdgeSchema = edge('SCOPE_DISJOINT', CLAIM_KINDS, CLAIM_KINDS, z.object({ differingScopeKeys: z.array(z.string().max(50)).min(1), ...how }));
 export const DuplicateOfEdgeSchema = edge('DUPLICATE_OF', ['evidence_passage'], ['evidence_passage'], methodScore);
 export const DerivedFromEdgeSchema = edge(
   'DERIVED_FROM',

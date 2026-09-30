@@ -215,3 +215,12 @@ export async function listStageLogs(db: Db, runId: string): Promise<StageLog[]> 
   const r = await db.query('SELECT * FROM brain.run_stage WHERE run_id = $1 ORDER BY stage', [runId]);
   return r.rows.map(stageFromRow);
 }
+
+/** Facts are recomputed as a unit by stage 30; their gaps, conflicts and verification requests cascade with them. */
+export async function deleteFactsByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.fact WHERE run_id = $1', [runId]);
+}
+
+export async function deleteGapsByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.gap WHERE run_id = $1', [runId]);
+}

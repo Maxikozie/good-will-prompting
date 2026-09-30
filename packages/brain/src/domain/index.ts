@@ -13,3 +13,5 @@ export * from './normalize';
 export * from './slots';
 export * from './claim-build';
 export * from './runlog';
+export * from './scope-match';
+export * from './compare';

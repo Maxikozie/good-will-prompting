@@ -1,0 +1,14 @@
+# SPEC §8: every weight, tier weight, half-life default and band lives here (versioned, part of rulesVersion).
+version: 1
+weights: { verification: 0.30, authority: 0.20, ownership: 0.15, consensus: 0.15, integrity: 0.10, usage: 0.10 }
+tierWeights: { T0: 0, T1: 0.3, T2: 0.6, T3: 0.85, T4: 1.0 }
+authority:
+  evidence: { law: 1.0, owner_policy: 0.85, sharepoint: 0.7, manual: 0.7, ticket: 0.5, teams: 0.4, email: 0.3, other: 0.2 }
+  reference: { default: 0.5, official_owned: 0.7 }
+ownership: { active: 1.0, inactive: 0.4, none: 0.2 }
+consensusPerGroup: 0.35
+conflictPenalty: { high: 30, medium: 15, low: 5, max: 40 }
+gates: { expired: 10, superseded: 20, invalidated: 30, not_a_rule: 25 }
+bands: { trusted: 80, careful: 60 }
+# stage 40 (gaps): WEAK_SUPPORT when the best claim scores below `scoreBelow`, or the only independent source has authority below `lowAuthorityBelow`
+weakSupport: { scoreBelow: 60, lowAuthorityBelow: 0.5 }
