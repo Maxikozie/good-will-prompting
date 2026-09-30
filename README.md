@@ -20,7 +20,8 @@ Scoring is **deterministic and explainable**: no LLM at runtime, so it's fast, c
 npm install
 npm run dev          # dashboard + API on http://localhost:5173 (builds the vault on first run)
 ```
-- `npm run ingest`: rebuild the vault from `data/mock` (also: "Reset demo" in the dashboard footer)
+- `npm run ingest`: rebuild the vault from `data/mock` (also: "Reset" top right in the dashboard)
+- Voice input: set `ELEVENLABS_API_KEY` in `.env`. Audio goes browser → our server → ElevenLabs Speech-to-Text (`scribe_v2`), so the key never reaches the browser. Without a key, just type
 - `npm run mcp`: the MCP server over stdio (use `npm run --silent mcp` so npm doesn't write to stdout)
 
 ### Use it from Claude
@@ -66,7 +67,7 @@ vault/                generated, gitignored; opens in Obsidian
 src/core/             pure logic shared by MCP + API: ingest, trust scoring, health/lint, tasks, experts
 src/mcp/server.ts     MCP server (stdio, @modelcontextprotocol/sdk, zod-validated tools)
 src/api/server.ts     Express API + Vite dev middleware (one process, one port)
-web/                  React + Tailwind dashboard: Live call · Knowledge radar · Owner inbox
+web/                  React + Tailwind: semi-headless Ask view (voice via ElevenLabs) + Radar + Owner inbox
 ```
 Vault pattern borrowed from claude-obsidian: immutable raw sources + linked wiki pages with citations + a lint pass for vault health. Our lint pass *is* the health radar.
 

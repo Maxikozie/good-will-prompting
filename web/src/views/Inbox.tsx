@@ -70,7 +70,7 @@ export default function Inbox({
             <div className="text-[15px] text-emerald-700">Page: {done.pageTitle}</div>
           </div>
           <button onClick={onBackToLive} className="rounded-lg bg-navy text-white px-5 py-2.5 font-medium hover:bg-brand">
-            Back to live call →
+            Ask the question again →
           </button>
         </div>
       )}
