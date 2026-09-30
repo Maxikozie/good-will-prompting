@@ -137,6 +137,43 @@ api.get('/raw/:hash', (req, res) => {
   res.json(raw);
 });
 
+// Voice input: browser audio → ElevenLabs Speech-to-Text (Scribe). The API key stays on the server.
+const STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
+const STT_MAX = 20; // transcriptions per client per minute (they cost credits)
+const sttHits = new Map<string, { count: number; reset: number }>();
+api.post('/transcribe', express.raw({ type: (req) => /^audio\//.test(String(req.headers['content-type'] ?? '')), limit: '10mb' }), async (req, res) => {
+  const type = String(req.headers['content-type'] ?? '').split(';')[0].trim();
+  if (!/^audio\/[a-z0-9.+-]{1,40}$/.test(type)) return res.status(415).json({ error: 'Send audio (e.g. audio/webm)' });
+  if (!Buffer.isBuffer(req.body) || req.body.length < 1000) return res.status(400).json({ error: 'Recording is empty or too short' });
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (!key) return res.status(503).json({ error: 'Voice input is not configured (ELEVENLABS_API_KEY missing). Type your question instead.' });
+
+  const ip = req.ip ?? 'unknown';
+  const t = Date.now();
+  const h = sttHits.get(ip);
+  if (!h || h.reset < t) sttHits.set(ip, { count: 1, reset: t + 60_000 });
+  else if (++h.count > STT_MAX) return res.status(429).json({ error: 'Too many voice requests, wait a minute' });
+
+  const form = new FormData();
+  form.append('model_id', 'scribe_v2');
+  form.append('tag_audio_events', 'false');
+  form.append('file', new Blob([new Uint8Array(req.body)], { type }), `question.${type.split('/')[1].replace(/[^a-z0-9]/g, '') || 'webm'}`);
+  try {
+    const r = await fetch(STT_URL, { method: 'POST', headers: { 'xi-api-key': key }, body: form, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) {
+      console.error(`[api] speech-to-text failed with HTTP ${r.status}`);
+      return res.status(502).json({ error: 'Speech-to-text failed. Type your question instead.' });
+    }
+    const data = (await r.json()) as { text?: unknown };
+    const text = typeof data.text === 'string' ? data.text.trim().slice(0, 500) : '';
+    if (!text) return res.status(422).json({ error: "Didn't catch that, try again" });
+    res.json({ text });
+  } catch {
+    console.error('[api] speech-to-text request error');
+    res.status(502).json({ error: 'Speech-to-text unavailable. Type your question instead.' });
+  }
+});
+
 // Demo helper: rebuild the vault from data/mock between recording takes. Disabled in production.
 api.post('/demo/reset', (_req, res) => {
   if (isProd) return res.status(404).json({ error: 'Not found' });

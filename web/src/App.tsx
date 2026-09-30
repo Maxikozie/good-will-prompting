@@ -4,10 +4,11 @@ import { api } from './api';
 import LiveCall from './views/LiveCall';
 import Radar from './views/Radar';
 import Inbox from './views/Inbox';
+import Ask from './views/Ask';
 
-type View = 'live' | 'radar' | 'inbox';
-const VIEWS: View[] = ['live', 'radar', 'inbox'];
-const initialView = (): View => (VIEWS.find((v) => `#${v}` === window.location.hash) ?? 'live');
+type View = 'ask' | 'live' | 'radar' | 'inbox';
+const VIEWS: View[] = ['ask', 'live', 'radar', 'inbox'];
+const initialView = (): View => (VIEWS.find((v) => `#${v}` === window.location.hash) ?? 'ask');
 const storedScore = () => {
   const n = Number(sessionStorage.getItem('tl.lastScore'));
   return sessionStorage.getItem('tl.lastScore') !== null && Number.isFinite(n) ? n : null;
@@ -45,6 +46,12 @@ export default function App() {
   }, [refresh]);
 
   useEffect(() => {
+    const onHash = () => setView(initialView());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  useEffect(() => {
     window.history.replaceState(null, '', `#${view}`);
     refresh();
   }, [view, refresh]);
@@ -58,18 +65,34 @@ export default function App() {
     sessionStorage.removeItem('tl.lastScore');
     setDelta(null);
     setResetKey((k) => k + 1);
-    setView('live');
+    setView('ask');
     refresh();
   }
 
   const tabs: { id: View; label: string; badge?: number }[] = [
+    { id: 'ask', label: 'Ask' },
     { id: 'live', label: 'Live call' },
     { id: 'radar', label: 'Knowledge radar' },
     { id: 'inbox', label: 'Owner inbox', badge: openCount },
   ];
 
+  // Semi-headless default: an empty canvas with one composer, like a Claude plugin. Everything else sits behind a faint menu.
+  const ask = (
+    <div className={view === 'ask' ? 'h-full' : 'hidden'}>
+      <Ask key={resetKey} rerun={rerun} tasks={tasks} onChange={refresh} />
+      <nav className="fixed top-5 right-6 flex gap-4 text-[13px] text-slate-300">
+        <button onClick={() => setView('radar')} className="hover:text-slate-600">Radar</button>
+        <button onClick={() => setView('inbox')} className="hover:text-slate-600">
+          Inbox{openCount ? ` (${openCount})` : ''}
+        </button>
+        <button onClick={resetDemo} className="hover:text-slate-600">Reset</button>
+      </nav>
+    </div>
+  );
   return (
-    <div className="min-h-full flex flex-col">
+    <div className="h-full">
+      {ask}
+      <div className={view === 'ask' ? 'hidden' : 'min-h-full flex flex-col'}>
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-[1680px] mx-auto px-8 h-16 flex items-center gap-10">
           <div className="flex items-center gap-3">
@@ -119,7 +142,7 @@ export default function App() {
             name={name}
             onChange={refresh}
             onBackToLive={() => {
-              setView('live');
+              setView('ask');
               setRerun((n) => n + 1);
             }}
           />
@@ -132,6 +155,7 @@ export default function App() {
           Reset demo
         </button>
       </footer>
+      </div>
     </div>
   );
 }
