@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { z } from 'zod';
-import { readJson } from '../security/input';
+import { readJson, assertAllowedDir, resolveInside } from '../security/input';
 import { loadSlotTemplates } from '../rules/slots';
 import { loadDemo, type DemoData } from '../store/seed';
 import { normalizeValue, mergeScope, type PartialScope } from '../domain';
@@ -26,18 +26,20 @@ export class RecordingProvider implements LLMProvider {
   readonly modelId: string;
   written = 0;
   reused = 0;
+  private readonly outDir: string;
 
   constructor(
     private readonly inner: LLMProvider,
-    private readonly outDir: string,
+    outDir: string,
     private readonly force = false,
   ) {
     this.modelId = inner.modelId;
+    this.outDir = assertAllowedDir(outDir);
   }
 
   async completeJSON<T>(schema: z.ZodType<T>, messages: readonly Message[], opts: CompleteOpts<T>): Promise<T> {
     const hash = inputHash(messages);
-    const file = path.join(this.outDir, fixtureFileName(opts.promptId, hash));
+    const file = resolveInside(this.outDir, fixtureFileName(opts.promptId, hash));
     if (!this.force && fs.existsSync(file)) {
       const existing = readJson(file, FixtureSchema);
       const ok = schema.safeParse(existing.response);

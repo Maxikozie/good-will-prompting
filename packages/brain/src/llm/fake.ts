@@ -1,4 +1,4 @@
-import { readJson } from '../security/input';
+import { readJson, assertAllowedDir, isSafeFileName, resolveInside, safeFileName } from '../security/input';
 import { MessagesSchema } from '../security/model';
 import { reserveModelCall } from '../security/budget';
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ export interface Fixture {
 
 export const FixtureSchema = z.object({ promptId: z.string().max(100), promptVersion: z.string().max(100), inputHash: z.string().length(64), model: z.string().max(200), messages: MessagesSchema, response: z.unknown() }).strict();
 
-export const fixtureFileName = (promptId: string, hash: string) => path.join(promptId, `${hash.slice(0, 16)}.json`);
+export const fixtureFileName = (promptId: string, hash: string) => path.join(safeFileName(promptId), safeFileName(`${hash.slice(0, 16)}.json`, '.json'));
 
 /**
  * Replays recorded answers keyed by (promptId, inputHash). No network, no model, fully deterministic.
@@ -43,10 +43,11 @@ export class FakeProvider implements LLMProvider {
   static fromDir(dir: string): FakeProvider {
     const fixtures: Fixture[] = [];
     if (fs.existsSync(dir)) {
-      for (const sub of fs.readdirSync(dir, { withFileTypes: true })) {
-        if (!sub.isDirectory()) continue;
-        for (const f of fs.readdirSync(path.join(dir, sub.name)).filter((x) => x.endsWith('.json')).sort()) {
-          fixtures.push(readJson(path.join(dir, sub.name, f), FixtureSchema));
+      const base = assertAllowedDir(dir);
+      for (const sub of fs.readdirSync(base, { withFileTypes: true })) {
+        if (!sub.isDirectory() || !isSafeFileName(sub.name)) continue;
+        for (const f of fs.readdirSync(resolveInside(base, sub.name)).filter((x) => isSafeFileName(x, '.json')).sort()) {
+          fixtures.push(readJson(resolveInside(base, sub.name, f), FixtureSchema));
         }
       }
     }

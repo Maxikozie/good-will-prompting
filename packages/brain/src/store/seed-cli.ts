@@ -1,11 +1,10 @@
 import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { connect } from './db';
+import { PROJECT_ROOT, resolveInside } from '../security/input';
 import { seedDemo } from './seed';
 
 // npm run brain:seed (repo root) or npm run seed (packages/brain). DATABASE_URL → real Postgres, otherwise embedded PGlite.
-const repoEnv = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '.env');
+const repoEnv = resolveInside(PROJECT_ROOT, '.env');
 if (fs.existsSync(repoEnv)) process.loadEnvFile(repoEnv);
 for (const k of ['DATABASE_URL', 'BRAIN_PGLITE_DIR']) if (process.env[k] === '') delete process.env[k];
 

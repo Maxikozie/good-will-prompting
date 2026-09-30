@@ -1,18 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { readYaml } from '../security/input';
+import { readYaml, assertAllowedDir, isSafeFileName, resolveInside } from '../security/input';
 import { SlotTemplateSchema, type Slot, type SlotTemplate } from '../domain';
 
 export const SLOTS_DIR = path.resolve(import.meta.dirname, '..', '..', 'slots');
 
 /** Load and validate every slots/<subject>.yaml. */
 export function loadSlotTemplates(dir = SLOTS_DIR): SlotTemplate[] {
-  if (!fs.existsSync(dir)) return [];
+  const base = assertAllowedDir(dir);
+  if (!fs.existsSync(base)) return [];
   return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.yaml'))
+    .readdirSync(base)
+    .filter((f) => isSafeFileName(f, '.yaml'))
     .sort()
-    .map((f) => readYaml(path.join(dir, f), SlotTemplateSchema));
+    .map((f) => readYaml(resolveInside(base, f), SlotTemplateSchema));
 }
 
 /** Weight multiplier for slots the LLM proposed instead of a human-written template (SPEC §4). */

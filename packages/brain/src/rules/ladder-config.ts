@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { readText, parseYaml } from '../security/input';
+import { readText, parseYaml, allowedFile } from '../security/input';
 import { z } from 'zod';
 import { TierSchema } from '../domain';
 import { SCORING_FILE, ScoringConfigSchema } from '../scoring/config';
@@ -56,12 +56,12 @@ let cached: Rules | undefined;
 export function loadRules(rulesFile = RULES_FILE, scoringFile = SCORING_FILE): Rules {
   const isDefault = rulesFile === RULES_FILE && scoringFile === SCORING_FILE;
   if (isDefault && cached) return cached;
-  const rulesText = readText(rulesFile);
+  const rulesText = readText(allowedFile(rulesFile, '.yaml'));
   const config = RulesConfigSchema.parse(parseYaml(rulesText));
   for (const step of config.ladder) {
     if (!Object.hasOwn(paramsSchemas, step.id) && step.params !== undefined) z.object({}).strict().parse(step.params);
   }
-  const scoringText = readText(scoringFile);
+  const scoringText = readText(allowedFile(scoringFile, '.yaml'));
   ScoringConfigSchema.parse(parseYaml(scoringText));
   const p = (id: keyof typeof paramsSchemas) => paramsSchemas[id].parse(config.ladder.find((s) => s.id === id)?.params);
   const three = p('3_authority') as z.infer<(typeof paramsSchemas)['3_authority']>;

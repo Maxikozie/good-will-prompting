@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { readYaml } from '../security/input';
+import { readYaml, allowedFile } from '../security/input';
 import { z } from 'zod';
 
 const unit = z.number().min(0).max(1);
@@ -32,7 +32,7 @@ export const SCORING_FILE = path.resolve(import.meta.dirname, '..', '..', 'rules
 let cached: ScoringConfig | undefined;
 export function loadScoringConfig(file = SCORING_FILE): ScoringConfig {
   if (file === SCORING_FILE && cached) return cached;
-  const cfg = readYaml(file, ScoringConfigSchema);
+  const cfg = readYaml(allowedFile(file, '.yaml'), ScoringConfigSchema);
   const sum = Object.values(cfg.weights).reduce((a, b) => a + b, 0);
   if (Math.abs(sum - 1) > 1e-9) throw new Error(`scoring weights must sum to 1, got ${sum}`);
   if (file === SCORING_FILE) cached = cfg;

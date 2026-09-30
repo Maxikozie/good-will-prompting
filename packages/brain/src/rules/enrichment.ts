@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { readYaml } from '../security/input';
+import { readYaml, allowedFile } from '../security/input';
 import { z } from 'zod';
 
 export const EnrichmentConfigSchema = z.object({
@@ -22,7 +22,7 @@ export const ENRICHMENT_FILE = path.resolve(import.meta.dirname, '..', '..', 'ru
 let cached: EnrichmentConfig | undefined;
 export function loadEnrichmentConfig(file = ENRICHMENT_FILE): EnrichmentConfig {
   if (file === ENRICHMENT_FILE && cached) return cached;
-  const cfg = readYaml(file, EnrichmentConfigSchema);
+  const cfg = readYaml(allowedFile(file, '.yaml'), EnrichmentConfigSchema);
   if (file === ENRICHMENT_FILE) cached = cfg;
   return cfg;
 }

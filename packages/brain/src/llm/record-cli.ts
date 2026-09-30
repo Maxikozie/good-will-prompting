@@ -1,13 +1,13 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { createProvider, DEFAULT_FIXTURE_DIR } from './provider';
 import { recordDemo } from './record';
 import { LLMError } from './errors';
+import { PROJECT_ROOT, resolveInside } from '../security/input';
 
 // npm run brain:record [-- --force]
 // Runs the REAL provider (BRAIN_LLM_PROVIDER = ollama | anthropic) over the demo seed and writes FakeProvider fixtures to
 // test/fixtures/llm/. Existing fixtures are reused unless --force. Commit the result so the golden test is deterministic.
-const repoEnv = path.resolve(import.meta.dirname, '..', '..', '..', '..', '.env');
+const repoEnv = resolveInside(PROJECT_ROOT, '.env');
 if (fs.existsSync(repoEnv)) process.loadEnvFile(repoEnv);
 for (const k of ['BRAIN_LLM_PROVIDER', 'OLLAMA_HOST', 'OLLAMA_MODEL', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL']) if (process.env[k] === '') delete process.env[k];
 

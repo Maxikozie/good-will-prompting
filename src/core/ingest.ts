@@ -1,5 +1,5 @@
 import { ClaimsFileSchema, SharePointSchema, TeamsSchema, EmailSchema, QueriesSeedSchema } from './input-schemas';
-import { readJson, readText, parseJson, boundText } from '../../packages/brain/src/security/input';
+import { readJson, readText, parseJson, boundText, isSafeFileName, resolveInside } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Claim, Country, Origin, QueryLogEntry, SourceType, WikiPage } from './types';
@@ -18,17 +18,17 @@ const ORIGIN_LABEL: Record<Origin, string> = {
 };
 
 function files(dir: string, ext: string): string[] {
-  const full = path.join(MOCK_DIR, dir);
+  const full = resolveInside(MOCK_DIR, dir);
   if (!fs.existsSync(full)) return [];
   return fs
     .readdirSync(full)
-    .filter((f) => f.endsWith(ext))
+    .filter((f) => isSafeFileName(f, ext))
     .sort()
-    .map((f) => path.join(full, f));
+    .map((f) => resolveInside(full, f));
 }
 
 function loadClaims(): Record<string, Claim[]> {
-  const f = path.join(MOCK_DIR, 'claims-cache.json');
+  const f = resolveInside(MOCK_DIR, 'claims-cache.json');
   return readJson(f, ClaimsFileSchema).claims;
 }
 
@@ -184,7 +184,7 @@ export function ingest(): { pages: number } {
   saveTasks([]);
 
   // MOCK: seed the query log with questions colleagues asked this month.
-  const seed = readJson(path.join(MOCK_DIR, 'internal', 'queries-seed.json'), QueriesSeedSchema);
+  const seed = readJson(resolveInside(MOCK_DIR, 'internal', 'queries-seed.json'), QueriesSeedSchema);
   for (const q of seed.queries) {
     const entry: QueryLogEntry = {
       ts: q.ts,

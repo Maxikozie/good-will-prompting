@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { readText, parseYaml, boundText } from '../security/input';
+import { readText, parseYaml, boundText, resolveInside, safeFileName } from '../security/input';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,7 +34,7 @@ export function loadPrompt(id: PromptId, version = CURRENT_VERSION): PromptTempl
   const hit = cache.get(key);
   if (hit) return hit;
   if (id.length > 100 || version.length > 20 || !/^[a-z-]+$/.test(id) || !/^v\d+$/.test(version)) throw new LLMError(`bad prompt id/version: ${key}`);
-  const file = path.join(PROMPTS_DIR, `${key}.md`);
+  const file = resolveInside(PROMPTS_DIR, safeFileName(`${key}.md`, '.md'));
   if (!fs.existsSync(file)) throw new LLMError(`prompt file not found: prompts/${key}.md`);
   const src = readText(file);
   const m = src.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);

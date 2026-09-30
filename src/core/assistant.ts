@@ -1,7 +1,6 @@
 import { AssistantFixtureSchema } from './input-schemas';
-import { readJson } from '../../packages/brain/src/security/input';
+import { readJson, isSafeFileName, resolveInside } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
-import path from 'node:path';
 import type { InputSource } from './types';
 import { detectCountry, detectTopic } from './org';
 import { MOCK_DIR, tokens } from './util';
@@ -24,11 +23,11 @@ interface Fixture {
 }
 
 function fixtures(): Fixture[] {
-  const dir = path.join(MOCK_DIR, 'existing-assistant');
+  const dir = resolveInside(MOCK_DIR, 'existing-assistant');
   return fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => readJson(path.join(dir, f), AssistantFixtureSchema));
+    .filter((f) => isSafeFileName(f, '.json'))
+    .map((f) => readJson(resolveInside(dir, f), AssistantFixtureSchema));
 }
 
 export function existingAssistant(question: string): { assistant: string; results: AssistantResult[] } {
