@@ -33,3 +33,9 @@ export async function listExperts(db: Db, subject: string, opts: { country?: str
   );
   return r.rows.map((x: Record<string, any>) => parseRow(ExpertiseSchema, { personId: x.person_id, subject: x.subject, country: x.country, weight: x.weight })); // eslint-disable-line @typescript-eslint/no-explicit-any
 }
+
+/** The full principal set of a caller: the principal ids of the person who owns `principalId` (e.g. "user:nina.maes"), else just itself. */
+export async function principalSetFor(db: Db, principalId: string): Promise<string[]> {
+  const r = await db.query<{ principal_ids: string[] }>('SELECT principal_ids FROM org.person WHERE $1 = ANY(principal_ids) ORDER BY id LIMIT 1', [principalId]);
+  return r.rows[0] ? r.rows[0].principal_ids : [principalId];
+}

@@ -13,7 +13,7 @@ type ScopeLike = { [K in ScopeKey]?: string | null | undefined } | null | undefi
 const WILDCARD = '*';
 
 /** lowercase, strip diacritics, keep letters+digits only: "PC 200" and "pc200" are the same committee. */
-function norm(v: string | null | undefined): string {
+export function normalizeScopeValue(v: string | null | undefined): string {
   if (v == null) return WILDCARD;
   const s = v
     .normalize('NFKD')
@@ -28,7 +28,7 @@ function norm(v: string | null | undefined): string {
  * Order-independent (object key order never matters) and null-safe (null/undefined scope = all wildcards).
  */
 export function scopeKey(scope: ScopeLike): string {
-  return SCOPE_KEYS.map((k) => `${k}=${norm(scope?.[k])}`).join(';');
+  return SCOPE_KEYS.map((k) => `${k}=${normalizeScopeValue(scope?.[k])}`).join(';');
 }
 
 /** qualifiers ⊕ declaredScope (SPEC §3): a claim's own qualifier wins, the document's declared scope fills the blanks. */
@@ -48,7 +48,7 @@ export function mergeScope(declared: PartialScope | null | undefined, qualifiers
 
 /** Scope dimensions on which two scopes differ (used by ladder rule 1, scope split). */
 export function differingScopeKeys(a: ScopeLike, b: ScopeLike): ScopeKey[] {
-  return SCOPE_KEYS.filter((k) => norm(a?.[k]) !== norm(b?.[k]));
+  return SCOPE_KEYS.filter((k) => normalizeScopeValue(a?.[k]) !== normalizeScopeValue(b?.[k]));
 }
 
 export interface ClaimKeyInput {

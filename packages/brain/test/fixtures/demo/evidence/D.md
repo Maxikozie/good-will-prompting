@@ -6,7 +6,7 @@ uri: "mail://attachments/klein-verlet-BE-v2.docx"
 owner: pieter.wouters
 author: pieter.wouters
 last_edited: "2023-02-14T00:00:00.000Z"
-declared_scope: { country: BE, jointCommittee: "PC 200", employeeCategory: bediende }
+declared_scope: { country: BE, jointCommittee: "PC 200", employeeCategory: bediende, product: hr }
 allowed_principals: ["group:customer-service-be"]
 ---
 # HR-beleid: klein verlet (België)

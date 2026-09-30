@@ -21,7 +21,8 @@ RELATIONS:
 
 OUTPUT JSON:
 { "relation": "agree" | "contradict" | "refine" | "supersede" | "scope_disjoint" | "unrelated",
-  "explanation": string }   // exactly ONE sentence (max 300 characters) saying why, citing the differing values. Write it in the language of the quotes.
+  "explanation": string,    // exactly ONE sentence (max 300 characters) saying why, citing the differing values. Write it in the language of the quotes.
+  "direction": "a" | "b" | null }   // "refine": the claim that is MORE SPECIFIC; "supersede": the claim that is NEWER and replaces the other; for every other relation null.
 
 ## user
 Subject: {{subject}}

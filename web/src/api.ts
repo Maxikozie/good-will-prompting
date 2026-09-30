@@ -56,6 +56,17 @@ export const api = {
       body: { verified_claim, resolved_by },
     }),
   reset: () => call<unknown>('/demo/reset', { method: 'POST' }),
+  /** Voice question → text via the server's ElevenLabs proxy (the key never reaches the browser). */
+  transcribe: async (audio: Blob): Promise<string> => {
+    const res = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: { 'content-type': (audio.type || 'audio/webm').split(';')[0] },
+      body: audio,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || typeof data?.text !== 'string') throw new Error(data?.error ?? `Voice input failed (${res.status})`);
+    return data.text;
+  },
 };
 
 /** Strip undefined/null fields so strict zod schemas accept the context. */

@@ -14,6 +14,17 @@ body,
   height: 100%;
 }
 
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 body {
   @apply bg-slate-50 text-slate-800 antialiased;
 }

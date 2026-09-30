@@ -6,6 +6,7 @@ import {
   FactSchema,
   GapSchema,
   OrgEventSchema,
+  StageLogSchema,
   VerificationEventSchema,
   VerificationRequestSchema,
   type Attribution,
@@ -15,6 +16,7 @@ import {
   type Fact,
   type Gap,
   type OrgEvent,
+  type StageLog,
   type VerificationEvent,
   type VerificationRequest,
 } from '../domain';
@@ -198,4 +200,27 @@ export async function saveOrgEvent(db: Db, e: OrgEvent): Promise<void> {
 export async function listOrgEvents(db: Db): Promise<OrgEvent[]> {
   const r = await db.query('SELECT * FROM brain.org_event ORDER BY effective_at, id');
   return r.rows.map(orgEventFromRow);
+}
+
+// ---------------------------------------------------------------- pipeline stage log
+const stageFromRow = (r: Row): StageLog =>
+  parseRow(StageLogSchema, clean({ runId: r.run_id, stage: r.stage, status: r.status, startedAt: isoReq(r.started_at), finishedAt: isoReq(r.finished_at), stats: r.stats, error: opt(r.error) }));
+
+/** Re-running a stage replaces its row. */
+export async function saveStageLog(db: Db, l: StageLog): Promise<void> {
+  await upsert(db, 'brain.run_stage', { run_id: l.runId, stage: l.stage, status: l.status, started_at: l.startedAt, finished_at: l.finishedAt, stats: json(l.stats), error: l.error }, ['run_id', 'stage']);
+}
+
+export async function listStageLogs(db: Db, runId: string): Promise<StageLog[]> {
+  const r = await db.query('SELECT * FROM brain.run_stage WHERE run_id = $1 ORDER BY stage', [runId]);
+  return r.rows.map(stageFromRow);
+}
+
+/** Facts are recomputed as a unit by stage 30; their gaps, conflicts and verification requests cascade with them. */
+export async function deleteFactsByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.fact WHERE run_id = $1', [runId]);
+}
+
+export async function deleteGapsByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.gap WHERE run_id = $1', [runId]);
 }
