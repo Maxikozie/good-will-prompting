@@ -56,7 +56,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 
 ## Status
 - [x] MCP session identity, central deny-by-default authorization and Brain IDOR registration guards; regression tests: `npm run test:security`
-- [x] Security threat model and source-review findings documented (no fixes applied; see `docs/security/`)
+- [x] Security threat model and baseline findings documented (remediation status in `docs/security/FINDINGS.md`)
 - [x] Project scaffold running
 - [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API
 - [x] Semi-headless Ask view with ElevenLabs voice input (typing fallback)

@@ -17,10 +17,15 @@ test('real stdio startup binds configured identity and serves the legacy tools',
   const client = new Client({ name: 'stdio-regression', version: '1' });
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 6);
+    const listed = (await client.listTools()).tools;
+    assert.equal(listed.length, 6);
+    for (const name of ['verify_sources', 'trusted_answer', 'knowledge_health']) {
+      assert.equal(listed.find((tool) => tool.name === name)?.annotations?.readOnlyHint, false);
+    }
     const result = await client.callTool({ name: 'trusted_answer', arguments: { question: 'Hoe vraag ik verlof aan?' } });
     assert.notEqual(result.isError, true);
-    const denied = await client.callTool({ name: 'flag_for_owner', arguments: { question: 'Hoe vraag ik verlof aan?' } });
+    const denied = await client.callTool({ name: 'flag_for_owner', arguments: { topic: 'sunday-overtime-premium', issue: 'conflict', note: 'Check owner' } });
     assert.equal(denied.isError, true);
+    assert.deepEqual(denied.content, [{ type: 'text', text: '403 Forbidden' }]);
   } finally { await client.close(); await rm(vault, { recursive: true, force: true }); }
 });
