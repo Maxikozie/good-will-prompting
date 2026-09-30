@@ -3,6 +3,7 @@ import { LIMITS } from '../../packages/brain/src/security/limits';
 import { boundedValue } from '../../packages/brain/src/security/input';
 import { ResourceError } from '../../packages/brain/src/security/errors';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import helmet from 'helmet';
 import path from 'node:path';
 import { z } from 'zod';
 import {
@@ -43,16 +44,30 @@ ensureVault();
 
 const app = express();
 app.disable('x-powered-by');
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
-  // Dev needs Vite's inline HMR preamble, so the strict CSP applies to the production build only.
-  if (isProd) res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-  next();
-});
+app.use(helmet({
+  // Dev needs Vite's inline HMR preamble and websocket, so the strict CSP applies to the production build only.
+  contentSecurityPolicy: isProd
+    ? {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          connectSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'self'"],
+        },
+      }
+    : false,
+  frameguard: { action: 'deny' },
+  referrerPolicy: { policy: 'no-referrer' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  strictTransportSecurity: { maxAge: 31_536_000, includeSubDomains: true },
+}));
 
 // Simple fixed-window rate limit per client IP for the API (no extra dependency).
 const RATE_WINDOW_MS = 60_000;
