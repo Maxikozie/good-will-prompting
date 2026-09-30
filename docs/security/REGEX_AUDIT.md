@@ -8,6 +8,11 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 
 | Location | Pattern | Assessment |
 | --- | --- | --- |
+| src/api/mock-user.ts:6 | `/^[a-z0-9][a-z0-9.-]{0,60}$/` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:12 | `/^audio\//` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:14 | `/^audio\/[a-z0-9.+-]{1,40}$/` | Fixed/linear pattern or bounded input as described above |
+| src/api/routes/speech.ts:28 | `/[^a-z0-9]/g` | Fixed/linear pattern or bounded input as described above |
+| src/api/web.ts:11 | `/^(?!\/api).*/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/brain-nodes.ts:82 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/claim.ts:48 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/evidence-nodes.ts:32 | `/^[a-f0-9]{64}$/` | Fixed/linear pattern or bounded input as described above |
@@ -148,11 +153,6 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | packages/brain/test/store.test.ts:326 | `/edge_from_type/` | Controlled test input |
 | packages/brain/test/store.test.ts:327 | `/edge_to_type/` | Controlled test input |
 | packages/brain/test/store.test.ts:328 | `/edge_run/` | Controlled test input |
-| src/api/server.ts:80 | `/^[a-z0-9][a-z0-9.-]{0,60}$/` | Fixed/linear pattern or bounded input as described above |
-| src/api/server.ts:153 | `/^audio\//` | Fixed/linear pattern or bounded input as described above |
-| src/api/server.ts:155 | `/^audio\/[a-z0-9.+-]{1,40}$/` | Fixed/linear pattern or bounded input as described above |
-| src/api/server.ts:169 | `/[^a-z0-9]/g` | Fixed/linear pattern or bounded input as described above |
-| src/api/server.ts:221 | `/^(?!\/api).*/` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:71 | `/\\/g` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:104 | `/\\/g` | Fixed/linear pattern or bounded input as described above |
 | src/core/ingest.ts:142 | `/\\/g` | Fixed/linear pattern or bounded input as described above |

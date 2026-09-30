@@ -46,7 +46,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 ## Structure & ownership
 - `data/mock/`: MOCK sources (SharePoint md, Teams/email json, HR directory, existing-assistant answers, claims cache)
 - `src/core/`: `types.ts` is the shared contract. ingest, trust scoring (`trust.ts`), health radar (`health.ts`), fix loop (`tasks.ts`), experts, zod schemas
-- `src/mcp/server.ts`: the 6 MCP tools. `src/api/server.ts`: Express API + Vite middleware
+- `src/mcp/server.ts`: the 6 MCP tools. `src/api/server.ts`: startup; `src/api/app.ts`, `routes/`, `middleware.ts`, `web.ts`: modular Express API + Vite integration
 - `web/`: two screens. **Ask** (`views/Ask.tsx`, the spotlight): input + mic bottom-centre, Claude-plugin look; radar icon (live score) opens `views/RadarPanel.tsx`; "Email <owner>" drafts the question as an email. **Mail** (`views/Mail.tsx`, `#mail`): the owner mailbox; replying resolves the task. Mail is MOCK (a fix task, nothing is sent), see `web/src/mail.ts`
 - `POST /api/transcribe`: ElevenLabs speech-to-text proxy (key server-side only)
 - `vault/`: generated, gitignored. Never edit by hand, run `npm run ingest`
@@ -56,6 +56,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - Casper:
 
 ## Status
+- [x] Modular API composition/routes and Ask feature hooks/components (`docs/ARCHITECTURE.md`)
 - [x] Strict input schemas, centralized limits, model budgets, call deadlines and regex audit (`docs/security/RESOURCE_LIMITS.md`)
 - [x] Brain verification JWT validation, key rotation, transactional single use and production mock-issuer guard (`docs/security/VERIFICATION_TOKENS.md`)
 - [x] MCP session identity, central deny-by-default authorization and Brain IDOR registration guards; regression tests: `npm run test:security`
