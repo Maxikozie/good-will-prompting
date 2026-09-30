@@ -37,7 +37,8 @@ Mock data, hardcoded values and fake auth are fine. Label mocks clearly in code 
 Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod · API: Express 5 · Dashboard: Vite + React 19 + Tailwind v4 · Vault: plain markdown + YAML (`yaml`). No LLM at runtime: trust scoring is deterministic, claims are pre-extracted in `data/mock/claims-cache.json`.
 
 ## Run
-- `npm install && npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
+- **Install first, after every pull:** `npm run setup` (root + `packages/brain`, two separate packages). Details, `.env` and agent rules: [brain/setup.md](brain/setup.md)
+- `npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
 - `npm run mcp` → MCP server on authenticated local stdio (configure `.env` per `docs/security/MCP_AUTH.md`) (Claude Code: `.mcp.json` is in the repo root)
 - `npm run ingest` → rebuild the vault from `data/mock` (same as the reset icon in the dashboard)
 - `npm run typecheck`

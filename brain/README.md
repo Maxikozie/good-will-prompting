@@ -15,6 +15,7 @@ They explicitly do **not** want "a SharePoint with a search function" or "anothe
 | [challenge.md](challenge.md) | The official brief: problem statement, real-life examples, guiding questions, what they don't want |
 | [sd-worx.md](sd-worx.md) | Company context: size, products (mysdworx), where knowledge lives today |
 | [judging.md](judging.md) | Deadline, deliverables, Aikido security scoring and how to earn those points |
+| [setup.md](setup.md) | **How to install everything**: `npm run setup`, what needs which package, `.env` for the MCP demo, rules for agents |
 | [solution.md](solution.md) | **What we're building: TrustLayer** (MCP trust layer), how it maps to the brief, demo story, design choices |
 | [brain-context.md](brain-context.md) | Casper's Brain design: full context, idea evolution, pitch lines, demo flow (NL) |
 | [brain-spec.md](brain-spec.md) | Brain spec v1: two corpora, claims, slots, adjudication ladder, scoring, per-source attribution, owner verification, radar. The roadmap beyond the TrustLayer MVP |
