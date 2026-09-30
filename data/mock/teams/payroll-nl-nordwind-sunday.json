@@ -1,0 +1,19 @@
+{
+  "_mock": "// MOCK: Microsoft Teams channel thread export (fake)",
+  "id": "teams-nordwind-nl-sunday",
+  "title": "Teams chat: zondagtoeslag reminder for Nordwind Retail NL",
+  "team": "Payroll NL",
+  "channel": "Nordwind",
+  "url": "https://teams.microsoft.example/l/message/19:nordwind-nl@thread.tacv2/1757000000000",
+  "country": "NL",
+  "client": "Nordwind Retail",
+  "product": "Pay",
+  "messages": [
+    {
+      "id": "1757000000000",
+      "from": "daan.visser",
+      "createdDateTime": "2026-09-04T08:15:00Z",
+      "body": "Reminder for the Nordwind NL September run: the zondagtoeslag stays at 50% under the CAO Retail Non-Food. No change for NL."
+    }
+  ]
+}

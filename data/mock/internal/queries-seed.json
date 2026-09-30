@@ -1,0 +1,10 @@
+{
+  "_mock": "// MOCK: questions colleagues asked the existing assistant this month (seeds vault/.meta/queries.log for gap detection)",
+  "queries": [
+    { "ts": "2026-09-08T09:12:00Z", "question": "Do Nordwind Retail NL employees get a bicycle commuting allowance?", "asked_by": "sanne.devries" },
+    { "ts": "2026-09-17T14:03:00Z", "question": "Do Nordwind Retail NL employees get a bicycle commuting allowance?", "asked_by": "daan.visser" },
+    { "ts": "2026-09-28T11:47:00Z", "question": "Do Nordwind Retail NL employees get a bicycle commuting allowance?", "asked_by": "nina.maes" },
+    { "ts": "2026-09-22T10:30:00Z", "question": "What night premium does Nordwind Retail pay in Belgium?", "asked_by": "sven.janssens" },
+    { "ts": "2026-09-29T16:20:00Z", "question": "What is the Sunday overtime premium for Nordwind Retail employees in Belgium?", "asked_by": "sven.janssens" }
+  ]
+}

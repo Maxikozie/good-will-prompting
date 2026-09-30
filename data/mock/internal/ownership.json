@@ -1,0 +1,7 @@
+{
+  "_mock": "// MOCK: client portfolio ownership from the internal CRM (fake)",
+  "ownership": [
+    { "client": "Nordwind Retail", "country": "BE", "domain": "payroll", "owner": "lotte.peeters", "team": "Payroll BE – Retail", "lead": "marc.claes" },
+    { "client": "Nordwind Retail", "country": "NL", "domain": "payroll", "owner": "daan.visser", "team": "Payroll NL", "lead": "sanne.devries" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "_mock": "// MOCK: Outlook message export (fake)",
+  "id": "email-nordwind-be-year-end-bonus-2021",
+  "subject": "Nordwind BE – how we calculate the year-end bonus",
+  "from": "pieter.wouters",
+  "to": ["payroll-be-retail@sdworx.example"],
+  "sentDateTime": "2021-11-30T09:05:00Z",
+  "url": "https://outlook.office.example/mail/id/AAMkAGNordwindBonus2021",
+  "country": "BE",
+  "client": "Nordwind Retail",
+  "product": "Pay",
+  "body": "Team,\n\nFor Nordwind BE the year-end bonus (13th month) is calculated pro rata on the days worked in the reference year (1 Oct - 30 Sep). Periods of sick leave up to 30 days count as worked.\n\nPieter"
+}
