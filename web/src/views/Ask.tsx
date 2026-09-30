@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { SourceVerdict, Task, Verdict } from '../../../src/core/types';
+import type { HealthReport, Person, SourceVerdict, Task, Verdict } from '../../../src/core/types';
 import { api, cleanContext, CALL_AGENT } from '../api';
+import { emailFromVerdict, subjectFor } from '../mail';
 import { fmtDate, scoreText } from '../ui';
+import RadarPanel from './RadarPanel';
 
 // Semi-headless "Claude + TrustLayer plugin" view: an empty canvas with one composer at the bottom.
 // The question goes to the existing assistant, then through trustlayer › verify_sources, shown as a tool call.
@@ -25,7 +27,27 @@ const MAX_RECORDING_MS = 15_000;
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export default function Ask({ rerun, tasks, onChange }: { rerun: number; tasks: Task[]; onChange: () => void }) {
+export default function Ask({
+  rerun,
+  tasks,
+  people,
+  health,
+  delta,
+  onChange,
+  onOpenMail,
+  onReset,
+}: {
+  rerun: number;
+  tasks: Task[];
+  people: Person[];
+  health: HealthReport | null;
+  delta: number | null;
+  onChange: () => void;
+  onOpenMail: () => void;
+  onReset: () => void;
+}) {
+  const [radar, setRadar] = useState(false);
+  const waiting = tasks.filter((t) => t.status === 'open').length;
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState('');
   const [mic, setMic] = useState<Mic>('idle');
@@ -111,10 +133,27 @@ export default function Ask({ rerun, tasks, onChange }: { rerun: number; tasks: 
 
   return (
     <div className="h-full flex flex-col bg-white">
+      {/* quiet corner: radar (with live health score), mail, reset */}
+      <nav className="fixed top-5 right-6 z-10 flex items-center gap-1">
+        <button onClick={() => setRadar(true)} title="Knowledge health radar" className="h-10 px-3 rounded-full flex items-center gap-2 text-slate-400 hover:bg-slate-50 hover:text-slate-700">
+          <RadarIcon />
+          {health && <span className={`text-[14px] font-medium tabular-nums ${scoreText(health.score)}`}>{health.score}</span>}
+          {delta ? <span className="text-[12px] text-emerald-600">▲{delta}</span> : null}
+        </button>
+        <button onClick={onOpenMail} title="Mail" className="relative w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700">
+          <MailIcon />
+          {waiting ? <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[10px] leading-4 text-center">{waiting}</span> : null}
+        </button>
+        <button onClick={onReset} title="Reset demo" className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 hover:bg-slate-50 hover:text-slate-600">
+          <ResetIcon />
+        </button>
+      </nav>
+      {radar && <RadarPanel health={health} delta={delta} tasks={tasks} people={people} onChange={onChange} onClose={() => setRadar(false)} />}
+
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-6 pt-16 pb-48 space-y-12">
           {turns.map((t, i) => (
-            <TurnView key={t.id} turn={t} latest={i === turns.length - 1} tasks={tasks} onChange={onChange} />
+            <TurnView key={t.id} turn={t} latest={i === turns.length - 1} tasks={tasks} people={people} onChange={onChange} onAskAgain={() => ask(t.question)} />
           ))}
           <div ref={bottomRef} />
         </div>
@@ -122,7 +161,7 @@ export default function Ask({ rerun, tasks, onChange }: { rerun: number; tasks: 
 
       {/* composer */}
       <div className="fixed inset-x-0 bottom-0 pointer-events-none">
-        <div className="h-24 bg-gradient-to-t from-white to-transparent" />
+        <div className="h-24 bg-gradient-to-t from-white to-white/0" />
         <div className="bg-white pb-10 pointer-events-auto">
           <div className="max-w-3xl mx-auto px-6">
             {empty && <p className="text-center text-slate-400 text-[15px] mb-4">Ask anything about SD Worx knowledge. TrustLayer checks every source.</p>}
@@ -182,7 +221,21 @@ export default function Ask({ rerun, tasks, onChange }: { rerun: number; tasks: 
   );
 }
 
-function TurnView({ turn, latest, tasks, onChange }: { turn: Turn; latest: boolean; tasks: Task[]; onChange: () => void }) {
+function TurnView({
+  turn,
+  latest,
+  tasks,
+  people,
+  onChange,
+  onAskAgain,
+}: {
+  turn: Turn;
+  latest: boolean;
+  tasks: Task[];
+  people: Person[];
+  onChange: () => void;
+  onAskAgain: () => void;
+}) {
   const v = turn.verdict;
   return (
     <div className="space-y-5 animate-[fadein_.35s_ease-out]">
@@ -202,7 +255,7 @@ function TurnView({ turn, latest, tasks, onChange }: { turn: Turn; latest: boole
       </div>
 
       {turn.error && <p className="text-[15px] text-accent">{turn.error}</p>}
-      {v && <VerdictView v={v} compact={!latest} tasks={tasks} onChange={onChange} />}
+      {v && <VerdictView v={v} compact={!latest} tasks={tasks} people={people} onChange={onChange} onAskAgain={onAskAgain} />}
     </div>
   );
 }
@@ -217,7 +270,21 @@ function ToolLine({ pending, label, detail }: { pending: boolean; label: string;
   );
 }
 
-function VerdictView({ v, compact, tasks, onChange }: { v: Verdict; compact: boolean; tasks: Task[]; onChange: () => void }) {
+function VerdictView({
+  v,
+  compact,
+  tasks,
+  people,
+  onChange,
+  onAskAgain,
+}: {
+  v: Verdict;
+  compact: boolean;
+  tasks: Task[];
+  people: Person[];
+  onChange: () => void;
+  onAskAgain: () => void;
+}) {
   const rec = v.recommended;
   const conflict = v.conflicts[0];
   return (
@@ -260,7 +327,7 @@ function VerdictView({ v, compact, tasks, onChange }: { v: Verdict; compact: boo
               <SourceRow key={s.page_id ?? s.title} s={s} askedCountry={v.context.country} />
             ))}
           </div>
-          <OwnerAction v={v} tasks={tasks} onChange={onChange} />
+          <EmailOwner v={v} tasks={tasks} people={people} onChange={onChange} onAskAgain={onAskAgain} />
         </>
       )}
     </div>
@@ -298,45 +365,137 @@ function SourceRow({ s, askedCountry }: { s: SourceVerdict; askedCountry?: strin
   );
 }
 
-function OwnerAction({ v, tasks, onChange }: { v: Verdict; tasks: Task[]; onChange: () => void }) {
-  const [sent, setSent] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+// "Ask the owner" = an email (MOCK: stored as a TrustLayer fix task, nothing is really sent).
+function EmailOwner({
+  v,
+  tasks,
+  people,
+  onChange,
+  onAskAgain,
+}: {
+  v: Verdict;
+  tasks: Task[];
+  people: Person[];
+  onChange: () => void;
+  onAskAgain: () => void;
+}) {
   const owner = v.owner_to_ask;
+  const me = people.find((p) => p.id === CALL_AGENT) ?? null;
+  const [composing, setComposing] = useState(false);
+  const [body, setBody] = useState(() => (owner ? emailFromVerdict(v, owner, me) : ''));
+  const [taskId, setTaskId] = useState<string | null>(v.open_task?.id ?? null);
+  const [err, setErr] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const card = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (composing) card.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [composing]);
   if (!owner || !v.topic || (v.verified && !v.conflicts.length)) return null;
-  const open =
-    v.open_task ??
-    tasks.find((t) => t.status === 'open' && t.topic === v.topic!.id && (t.country ?? undefined) === v.context.country) ??
+
+  const issue = v.conflicts.length ? 'conflict' : 'capture';
+  const scope = [v.context.client, v.context.country].filter(Boolean).join(' ');
+  const subject = subjectFor({ issue, topic_label: `${v.topic.label}${scope ? ` – ${scope}` : ''}` });
+  const task =
+    (taskId && tasks.find((t) => t.id === taskId)) ||
+    tasks.find((t) => t.status === 'open' && t.topic === v.topic!.id && (t.country ?? undefined) === v.context.country) ||
     null;
 
-  if (sent || open)
+  if (task?.status === 'resolved')
     return (
-      <p className="text-[14px] text-slate-500">
-        ✓ Sent to {owner.name}
-        {owner.name.endsWith('s') ? "'" : "'s"} inbox · you'll get the verified answer once they confirm
-      </p>
+      <div className="space-y-2">
+        <div className="text-[13px] text-slate-400">↩ {people.find((p) => p.id === task.resolved_by)?.name ?? owner.name} replied</div>
+        <p className="border-l-2 border-emerald-300 pl-4 text-[15px] text-slate-700">{task.verified_claim}</p>
+        <button onClick={onAskAgain} className="text-[14px] text-brand hover:underline">
+          Ask again →
+        </button>
+      </div>
+    );
+
+  if (task || taskId) return <p className="text-[14px] text-slate-500">✉ Email sent to {owner.name} · waiting for a reply</p>;
+
+  if (!composing)
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setComposing(true)}
+          className="rounded-full border border-slate-300 px-4 py-1.5 text-[14px] text-slate-700 hover:border-navy hover:text-navy transition"
+        >
+          ✉ Email {owner.name}
+        </button>
+        <span className="text-[13px] text-slate-400">{v.owner_reason}</span>
+      </div>
     );
 
   return (
-    <div className="flex items-center gap-3">
-      <button
-        onClick={async () => {
-          setErr(null);
-          try {
-            const note = `Customer on the line: ${v.question}`;
-            await api.flag(v.topic!.id, v.conflicts.length ? 'conflict' : 'capture', note, cleanContext(v.context), CALL_AGENT);
-            setSent(true);
-            onChange();
-          } catch (e) {
-            setErr(e instanceof Error ? e.message : 'Could not send');
-          }
-        }}
-        className="rounded-full border border-slate-300 px-4 py-1.5 text-[14px] text-slate-700 hover:border-navy hover:text-navy transition"
-      >
-        Ask {owner.name}
-      </button>
-      <span className="text-[13px] text-slate-400">{v.owner_reason}</span>
-      {err && <span className="text-[13px] text-accent">{err}</span>}
+    <div ref={card} className="rounded-2xl border border-slate-200 shadow-[0_4px_24px_rgba(15,23,42,0.06)] animate-[fadein_.25s_ease-out]">
+      <div className="px-5 pt-4 space-y-1 text-[14px]">
+        <div className="text-slate-400">
+          To <span className="text-slate-700">{owner.name}</span> &lt;{owner.email}&gt;
+        </div>
+        <div className="text-slate-800 font-medium">{subject}</div>
+      </div>
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        maxLength={1000}
+        rows={15}
+        className="w-full resize-none bg-transparent outline-none px-5 py-3 text-[14px] leading-relaxed text-slate-700"
+      />
+      <div className="px-4 pb-4 flex items-center gap-3">
+        <button
+          disabled={sending || body.trim().length < 5}
+          onClick={async () => {
+            setErr(null);
+            setSending(true);
+            try {
+              const r = await api.flag(v.topic!.id, issue, body, cleanContext(v.context), CALL_AGENT);
+              setTaskId(r.task.id);
+              onChange();
+            } catch (e) {
+              setErr(e instanceof Error ? e.message : 'Could not send');
+            } finally {
+              setSending(false);
+            }
+          }}
+          className="rounded-full bg-navy text-white px-5 py-2 text-[14px] font-medium disabled:bg-slate-200 disabled:text-slate-400"
+        >
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+        <button onClick={() => setComposing(false)} className="text-[14px] text-slate-400 hover:text-slate-700">
+          Cancel
+        </button>
+        {err && <span className="text-[13px] text-accent">{err}</span>}
+      </div>
     </div>
+  );
+}
+
+function RadarIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 12 18.5 5.5" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function ResetIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+    </svg>
   );
 }
 
