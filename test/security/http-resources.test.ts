@@ -14,7 +14,8 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
   await new Promise<void>((resolve) => socket.close(() => resolve()));
   const dir = mkdtempSync(join(tmpdir(), 'http-resource-'));
   const child = spawn(process.execPath, ['--import', 'tsx', 'src/api/server.ts', '--prod'], {
-    cwd: process.cwd(), env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TRUSTLAYER_VAULT_DIR: dir }, stdio: ['ignore', 'pipe', 'pipe'],
+    // ANTHROPIC_BASE_URL: regression, a third-party vendor variable must not stop the API from starting.
+    cwd: process.cwd(), env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', TRUSTLAYER_VAULT_DIR: dir, ANTHROPIC_BASE_URL: 'https://proxy.example' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let logs = ''; child.stdout.on('data', (b) => { logs += b; }); child.stderr.on('data', (b) => { logs += b; });
   const base = `http://127.0.0.1:${port}/api`;
@@ -26,7 +27,9 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.ok(ready, logs);
-    const post = (body: unknown) => fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    // Regression: the Ask view's first call loads the committed existing-assistant fixtures through the strict schema.
+    assert.equal((await fetch(`${base}/assistant?q=${encodeURIComponent('Sunday overtime premium in Belgium?')}`)).status, 200);
+    const post =(body: unknown) => fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal((await post({ question: 'Sunday overtime in Belgium?' })).status, 200);
     for (const body of [{ question: 'leave', injected: true }, { question: 'x'.repeat(LIMITS.questionChars + 1) }]) {
       const response = await post(body); assert.equal(response.status, 400);
