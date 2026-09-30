@@ -46,6 +46,11 @@ export async function upsertDocument(db: Db, d: EvidenceDocument): Promise<void>
   }, ['id']);
 }
 
+export async function getDocumentByUri(db: Db, uri: string): Promise<EvidenceDocument | null> {
+  const r = await db.query('SELECT * FROM evidence.document WHERE source_uri = $1 ORDER BY id LIMIT 1', [uri]);
+  return r.rows[0] ? docFromRow(r.rows[0]) : null;
+}
+
 export async function getDocument(db: Db, id: string): Promise<EvidenceDocument | null> {
   const r = await db.query('SELECT * FROM evidence.document WHERE id = $1', [id]);
   return r.rows[0] ? docFromRow(r.rows[0]) : null;
@@ -121,4 +126,22 @@ export async function listClaimsBySnapshot(db: Db, snapshotId: string): Promise<
 export async function listClaimsByKey(db: Db, claimKey: string): Promise<EvidenceClaim[]> {
   const r = await db.query('SELECT * FROM evidence.claim WHERE claim_key = $1 ORDER BY id', [claimKey]);
   return r.rows.map(evidenceClaimFromRow);
+}
+
+/** Passages of a snapshot that still have no embedding (so embedding is computed once, idempotently). */
+export async function listPassageIdsWithoutEmbedding(db: Db, snapshotId: string): Promise<string[]> {
+  const r = await db.query<{ id: string }>('SELECT id FROM evidence.passage WHERE snapshot_id = $1 AND embedding IS NULL ORDER BY ordinal', [snapshotId]);
+  return r.rows.map((x) => x.id);
+}
+
+/** Embeddings of a snapshot's passages, by passage id (for duplicate detection). */
+export async function getPassageEmbeddings(db: Db, snapshotId: string): Promise<Map<string, number[]>> {
+  const r = await db.query<{ id: string; e: string }>('SELECT id, embedding::text AS e FROM evidence.passage WHERE snapshot_id = $1 AND embedding IS NOT NULL', [snapshotId]);
+  return new Map(r.rows.map((x) => [x.id, JSON.parse(x.e) as number[]]));
+}
+
+/** Highest snapshot version of a document (0 if none). */
+export async function maxSnapshotVersion(db: Db, documentId: string): Promise<number> {
+  const r = await db.query<{ v: number | null }>('SELECT max(version) AS v FROM evidence.snapshot WHERE document_id = $1', [documentId]);
+  return Number(r.rows[0]?.v ?? 0);
 }

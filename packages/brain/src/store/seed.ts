@@ -22,6 +22,7 @@ import {
   type WikiSnapshot,
 } from '../domain';
 import type { Db } from './db';
+import { splitPassages } from '../evidence/passages';
 import { migrate } from './migrate';
 import * as evidenceRepo from './evidence-repo';
 import * as orgRepo from './org-repo';
@@ -97,7 +98,7 @@ export function loadDemo(dir = DEMO_DIR): DemoData {
       declaredScope: data.declared_scope ?? {}, allowedPrincipals: (data.allowed_principals ?? []).map(principalId),
     };
     const snapshot: EvidenceSnapshot = { id: snapId, namespace: 'evidence', createdAt: SEED_NOW, documentId: docId, contentHash: hash, text: body, fetchedAt: SEED_NOW, version: 1 };
-    const passages: EvidencePassage[] = splitSections(body).map((s) => ({
+    const passages: EvidencePassage[] = splitPassages(body).map((s) => ({
       id: evidencePassageId(`${snapId}#${s.ordinal}`), namespace: 'evidence', createdAt: SEED_NOW, snapshotId: snapId, ordinal: s.ordinal, start: s.start, end: s.end, text: s.text,
     }));
     return { document, snapshot, passages };
