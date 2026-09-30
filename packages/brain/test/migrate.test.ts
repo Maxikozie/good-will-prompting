@@ -10,7 +10,7 @@ afterAll(async () => db.close());
 
 describe('migrations', () => {
   it('apply once and are idempotent', async () => {
-    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql']);
+    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql']);
     expect(await migrate(db)).toEqual([]);
   });
 
@@ -22,7 +22,7 @@ describe('migrations', () => {
       'evidence.document', 'evidence.snapshot', 'evidence.passage', 'evidence.claim',
       'reference.wiki_page', 'reference.wiki_snapshot', 'reference.wiki_section', 'reference.reference_fact',
       'brain.case_run', 'brain.fact', 'brain.gap', 'brain.conflict', 'brain.canonical', 'brain.attribution',
-      'brain.verification_request', 'brain.verification_event', 'brain.org_event', 'brain.edge', 'brain.llm_cache', 'brain.run_stage',
+      'brain.verification_request', 'brain.verification_event', 'brain.org_event', 'brain.edge', 'brain.llm_cache', 'brain.run_stage', 'brain.claim_group',
     ]) expect(tables, t).toContain(t);
   });
 

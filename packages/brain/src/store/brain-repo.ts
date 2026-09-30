@@ -52,14 +52,15 @@ const factFromRow = (r: Row): Fact =>
   parseRow(FactSchema, clean({
     id: r.id, ...ns(r), runId: r.run_id, claimKey: r.claim_key, subject: r.subject, attribute: r.attribute, scope: r.scope, slotId: opt(r.slot_id),
     status: r.status, confidence: r.confidence, winnerClaimId: opt(r.winner_claim_id), winningValue: opt(r.winning_value), reasons: r.reasons,
-    needsVerification: r.needs_verification, impact: r.impact,
+    needsVerification: r.needs_verification, impact: r.impact, referenceOnly: r.reference_only,
   }));
 
-export async function saveFact(db: Db, f: Fact): Promise<void> {
+export async function saveFact(db: Db, input: Fact): Promise<void> {
+  const f = FactSchema.parse(input); // enforces the reference-only ceiling at write time
   await upsert(db, 'brain.fact', {
     id: f.id, run_id: f.runId, claim_key: f.claimKey, subject: f.subject, attribute: f.attribute, scope: json(f.scope), slot_id: f.slotId, status: f.status,
     confidence: f.confidence, winner_claim_id: f.winnerClaimId, winning_value: f.winningValue === undefined ? null : json(f.winningValue),
-    reasons: json(f.reasons), needs_verification: f.needsVerification, impact: f.impact, created_at: f.createdAt,
+    reasons: json(f.reasons), needs_verification: f.needsVerification, impact: f.impact, reference_only: f.referenceOnly, created_at: f.createdAt,
   }, ['id']);
 }
 
@@ -223,4 +224,40 @@ export async function deleteFactsByRun(db: Db, runId: string): Promise<void> {
 
 export async function deleteGapsByRun(db: Db, runId: string): Promise<void> {
   await db.query('DELETE FROM brain.gap WHERE run_id = $1', [runId]);
+}
+
+// ---------------------------------------------------------------- enrichment (stage 50)
+/** Undo what stage 50 did to the run's gaps and drop its reference-only facts, so a rerun starts from the stage-40 state. */
+export async function resetEnrichment(db: Db, runId: string): Promise<void> {
+  await db.query(
+    `UPDATE brain.gap g SET status = 'open', closed_by = NULL,
+            fact_id = CASE WHEN EXISTS (SELECT 1 FROM brain.fact f WHERE f.id = g.fact_id AND f.reference_only) THEN NULL ELSE g.fact_id END
+      WHERE g.run_id = $1`,
+    [runId],
+  );
+  await db.query('DELETE FROM brain.fact WHERE run_id = $1 AND reference_only', [runId]);
+  await db.query('DELETE FROM brain.claim_group WHERE run_id = $1', [runId]);
+}
+
+export async function updateGap(db: Db, id: string, patch: { status: 'open' | 'closed' | 'partially_closed'; closedBy?: string[]; factId?: string }): Promise<void> {
+  await db.query('UPDATE brain.gap SET status = $2, closed_by = $3, fact_id = COALESCE($4, fact_id) WHERE id = $1', [id, patch.status, patch.closedBy ?? null, patch.factId ?? null]);
+}
+
+export interface ClaimGroupRow {
+  runId: string;
+  claimId: string;
+  sourceKind: 'evidence' | 'reference';
+  sourceId: string;
+  groupId: string;
+}
+
+export async function saveClaimGroups(db: Db, rows: readonly ClaimGroupRow[]): Promise<void> {
+  for (const r of rows) {
+    await upsert(db, 'brain.claim_group', { run_id: r.runId, claim_id: r.claimId, source_kind: r.sourceKind, source_id: r.sourceId, group_id: r.groupId }, ['run_id', 'claim_id']);
+  }
+}
+
+export async function listClaimGroups(db: Db, runId: string): Promise<ClaimGroupRow[]> {
+  const r = await db.query('SELECT * FROM brain.claim_group WHERE run_id = $1 ORDER BY claim_id', [runId]);
+  return r.rows.map((x: Row) => ({ runId: x.run_id, claimId: x.claim_id, sourceKind: x.source_kind, sourceId: x.source_id, groupId: x.group_id }));
 }

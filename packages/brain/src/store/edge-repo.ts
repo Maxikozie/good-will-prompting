@@ -33,6 +33,9 @@ export async function edgesByRun(db: Db, runId: string): Promise<Edge[]> {
 }
 
 /** Delete a run's edges, optionally only some types (a stage replaces just the edges it wrote). */
-export async function deleteEdgesByRun(db: Db, runId: string, types?: readonly EdgeType[]): Promise<void> {
-  await db.query('DELETE FROM brain.edge WHERE run_id = $1 AND ($2::text[] IS NULL OR type::text = ANY($2::text[]))', [runId, types ? [...types] : null]);
+export async function deleteEdgesByRun(db: Db, runId: string, types?: readonly EdgeType[], fromKind?: string): Promise<void> {
+  await db.query(
+    'DELETE FROM brain.edge WHERE run_id = $1 AND ($2::text[] IS NULL OR type::text = ANY($2::text[])) AND ($3::text IS NULL OR from_kind::text = $3)',
+    [runId, types ? [...types] : null, fromKind ?? null],
+  );
 }

@@ -89,3 +89,24 @@ export const GapsOutputSchema = z.object({
   gapsByType: z.record(z.string(), z.number().int().min(0)),
 });
 export type GapsOutput = z.infer<typeof GapsOutputSchema>;
+
+export const EnrichInputSchema = z
+  .object({
+    runId: RunIdSchema,
+    slotTemplate: SlotTemplateSchema,
+    /** The caller's principals: wiki pages they may not read are never searched. */
+    principals: z.array(z.string().min(1).max(200)).min(1).max(100),
+  })
+  .strict();
+export type EnrichInput = z.infer<typeof EnrichInputSchema>;
+
+export const EnrichOutputSchema = z.object({
+  runId: RunIdSchema,
+  referenceFactIds: z.array(z.string()),
+  closedGapIds: z.array(z.string()),
+  partiallyClosedGapIds: z.array(z.string()),
+  /** Bridge edges written, by type. */
+  bridges: z.record(z.string(), z.number().int().min(0)),
+  queriesIssued: z.number().int().min(0),
+});
+export type EnrichOutput = z.infer<typeof EnrichOutputSchema>;

@@ -218,7 +218,7 @@ const fact: Fact = {
   id: FACT, namespace: 'brain', createdAt: NOW, runId: RUN, claimKey: claimKey({ subject: 'leave.small_leave.own_marriage', attribute: 'duration', qualifiers: { country: 'BE' } }),
   subject: 'leave.small_leave.own_marriage', attribute: 'duration', scope: { country: 'BE', jointCommittee: 'PC 200' }, slotId: 'duration', status: 'LIKELY', confidence: 84.5,
   winnerClaimId: evidenceClaimId('ec-1'), winningValue: { type: 'number', raw: '2 werkdagen', normalized: 2, unit: 'days' },
-  reasons: [{ code: 'NEWER_BUT_UNVERIFIED', message: 'B is newer but nobody verified it' }], needsVerification: true, impact: 'high',
+  reasons: [{ code: 'NEWER_BUT_UNVERIFIED', message: 'B is newer but nobody verified it' }], needsVerification: true, impact: 'high', referenceOnly: false,
 };
 
 describe('brain aggregates', () => {
@@ -356,7 +356,7 @@ describe('transactions and migrations on a second database', () => {
   it('a fresh database migrates and seeds from scratch', async () => {
     const fresh = await pgliteDb();
     try {
-      expect(await migrate(fresh)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql']);
+      expect(await migrate(fresh)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql']);
       const r = await seedDemo(fresh);
       expect(r.evidencePassages).toBe(demo.evidence.reduce((n, e) => n + e.passages.length, 0));
     } finally {

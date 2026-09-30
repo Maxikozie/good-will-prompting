@@ -66,24 +66,37 @@ export const CaseRunSchema = z.object({
 export type CaseRun = z.infer<typeof CaseRunSchema>;
 
 // ---- facts, gaps, conflicts
-/** An aligned proposition: all claims about the same subject+attribute+scope. */
-export const FactSchema = z.object({
-  id: FactIdSchema,
-  ...ns,
-  runId: RunIdSchema,
-  claimKey: z.string().regex(/^[a-f0-9]{40}$/),
-  subject: z.string().min(1).max(200),
-  attribute: z.string().min(1).max(100),
-  scope: ScopeSchema,
-  slotId: z.string().max(100).optional(),
-  status: FactStatusSchema,
-  confidence: z.number().min(0).max(100),
-  winnerClaimId: ClaimIdSchema.optional(),
-  winningValue: ClaimValueSchema.optional(),
-  reasons: z.array(ReasonSchema),
-  needsVerification: z.boolean(),
-  impact: Impact,
-});
+/** Statuses a fact supported only by the reference corpus (wiki) can never exceed: it needs evidence or an owner to go higher (SPEC §1). */
+export const REFERENCE_ONLY_FORBIDDEN_STATUSES = ['VERIFIED', 'LIKELY'] as const;
+
+/**
+ * An aligned proposition: all claims about the same subject+attribute+scope.
+ * `referenceOnly` = every member is a reference fact. It is part of the type, and the schema refuses
+ * a referenceOnly fact with status VERIFIED or LIKELY (so the ceiling holds for anything parsed, stored or loaded).
+ */
+export const FactSchema = z
+  .object({
+    id: FactIdSchema,
+    ...ns,
+    runId: RunIdSchema,
+    claimKey: z.string().regex(/^[a-f0-9]{40}$/),
+    subject: z.string().min(1).max(200),
+    attribute: z.string().min(1).max(100),
+    scope: ScopeSchema,
+    slotId: z.string().max(100).optional(),
+    status: FactStatusSchema,
+    confidence: z.number().min(0).max(100),
+    winnerClaimId: ClaimIdSchema.optional(),
+    winningValue: ClaimValueSchema.optional(),
+    reasons: z.array(ReasonSchema),
+    needsVerification: z.boolean(),
+    impact: Impact,
+    referenceOnly: z.boolean().default(false),
+  })
+  .refine((f) => !(f.referenceOnly && (REFERENCE_ONLY_FORBIDDEN_STATUSES as readonly string[]).includes(f.status)), {
+    message: 'a fact supported only by reference facts cannot be VERIFIED or LIKELY (max PROVISIONAL)',
+    path: ['status'],
+  });
 export type Fact = z.infer<typeof FactSchema>;
 
 export const GapSchema = z.object({

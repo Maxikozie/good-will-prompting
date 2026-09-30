@@ -15,3 +15,6 @@ export * from './claim-build';
 export * from './runlog';
 export * from './scope-match';
 export * from './compare';
+export * from './status';
+export * from './groups';
+export * from './split';
