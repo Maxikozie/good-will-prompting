@@ -45,7 +45,7 @@ export const QueryIntentSchema = z.object({
   questionType: QuestionTypeSchema,
   slotTemplateId: z.string().max(200),
   generatedSlots: z.boolean(),
-});
+}).strict();
 export type QueryIntent = z.infer<typeof QueryIntentSchema>;
 
 export const CaseRunSchema = z.object({
@@ -62,7 +62,7 @@ export const CaseRunSchema = z.object({
   referenceSnapshotIds: z.array(WikiSnapshotIdSchema),
   startedAt: IsoStringSchema,
   finishedAt: IsoStringSchema.optional(),
-});
+}).strict();
 export type CaseRun = z.infer<typeof CaseRunSchema>;
 
 // ---- facts, gaps, conflicts
@@ -92,7 +92,7 @@ export const FactSchema = z
     needsVerification: z.boolean(),
     impact: Impact,
     referenceOnly: z.boolean().default(false),
-  })
+  }).strict()
   .refine((f) => !(f.referenceOnly && (REFERENCE_ONLY_FORBIDDEN_STATUSES as readonly string[]).includes(f.status)), {
     message: 'a fact supported only by reference facts cannot be VERIFIED or LIKELY (max PROVISIONAL)',
     path: ['status'],
@@ -109,7 +109,7 @@ export const GapSchema = z.object({
   description: z.string().max(500),
   closedBy: z.array(ReferenceFactIdSchema).optional(),
   status: GapStatusSchema,
-});
+}).strict();
 export type Gap = z.infer<typeof GapSchema>;
 
 export const ConflictSchema = z.object({
@@ -123,7 +123,7 @@ export const ConflictSchema = z.object({
   resolution: z.string().max(500).optional(), // ladder rule id (e.g. "5_newer_but_unverified") or the owner's action
   resolvedBy: ResolvedBySchema.optional(),
   status: ConflictStatusSchema,
-});
+}).strict();
 export type Conflict = z.infer<typeof ConflictSchema>;
 
 export const CanonicalSchema = z.object({
@@ -135,7 +135,7 @@ export const CanonicalSchema = z.object({
   confidence: z.number().min(0).max(100),
   verifiedTier: TierSchema,
   nextReviewAt: IsoStringSchema,
-});
+}).strict();
 export type Canonical = z.infer<typeof CanonicalSchema>;
 
 /** Stored per run and source (SPEC §9). Rejected claims never earn contribution. */
@@ -145,9 +145,9 @@ export const AttributionSchema = z.object({
   sourceId: SourceIdSchema,
   contributionPct: z.number().min(0).max(100),
   acceptedClaims: z.array(ClaimIdSchema),
-  rejectedClaims: z.array(z.object({ claimId: ClaimIdSchema, code: ReasonCodeSchema })),
+  rejectedClaims: z.array(z.object({ claimId: ClaimIdSchema, code: ReasonCodeSchema }).strict()),
   reliabilityPct: z.number().min(0).max(100),
-});
+}).strict();
 export type Attribution = z.infer<typeof AttributionSchema>;
 
 // ---- verification (§10)
@@ -160,7 +160,7 @@ export const VerificationRequestSchema = z.object({
   status: VerificationRequestStatusSchema,
   tokenJti: z.string().min(8).max(100),
   expiresAt: IsoStringSchema,
-});
+}).strict();
 export type VerificationRequest = z.infer<typeof VerificationRequestSchema>;
 
 /** Append-only audit record. */
@@ -174,5 +174,5 @@ export const VerificationEventSchema = z.object({
   tier: TierSchema,
   payload: z.record(z.string(), z.unknown()),
   at: IsoStringSchema,
-});
+}).strict();
 export type VerificationEvent = z.infer<typeof VerificationEventSchema>;

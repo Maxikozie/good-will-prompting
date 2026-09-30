@@ -1,7 +1,10 @@
+import { LIMITS } from '../security/limits';
+import { embedWithLimits } from '../security/model';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   PartialScopeSchema,
+  IsoStringSchema,
   WikiPageSchema,
   WikiSectionSchema,
   WikiSnapshotSchema,
@@ -30,12 +33,12 @@ export const WikiPageInputSchema = z
     uri: z.string().trim().min(1).max(1000),
     owner: z.string().trim().min(1).max(200).optional(),
     official: z.boolean().default(false),
-    lastEditedAt: z.string().max(40),
-    lastVerifiedAt: z.string().max(40).optional(),
+    lastEditedAt: IsoStringSchema,
+    lastVerifiedAt: IsoStringSchema.optional(),
     declaredScope: PartialScopeSchema.default({}),
     allowedPrincipals: z.array(z.string().min(1).max(200)).max(50).default([]),
     outLinks: z.array(z.string().min(1).max(200)).max(100).default([]),
-    text: z.string().min(1).max(500_000),
+    text: z.string().min(1).max(LIMITS.documentChars),
   })
   .strict();
 export type WikiPageInput = z.input<typeof WikiPageInputSchema>;
@@ -99,8 +102,17 @@ export async function embedMissingSections(db: Db, embedder: Embedder, batch = 3
   const todo = await repo.listSectionsWithoutEmbedding(db);
   for (let i = 0; i < todo.length; i += batch) {
     const slice = todo.slice(i, i + batch);
-    const vectors = await embedder.embed(slice.map((s) => s.text));
+    const vectors = await embedWithLimits(embedder, slice.map((s) => s.text));
     for (let j = 0; j < slice.length; j++) await repo.setSectionEmbedding(db, slice[j]!.id, vectors[j]!);
   }
   return todo.length;
+}
+
+/** Public batch boundary: validate the entire batch before the first write/model call. */
+export const WikiBatchSchema = z.object({ pages: z.array(WikiPageInputSchema).min(1).max(LIMITS.wikiPagesPerIngest) }).strict();
+export async function ingestWikiPages(db: Db, embedder: Embedder, raw: z.input<typeof WikiBatchSchema>, now = new Date()) {
+  const { pages } = WikiBatchSchema.parse(raw);
+  const results = [];
+  for (const page of pages) results.push(await ingestWikiPage(db, embedder, page, now));
+  return results;
 }

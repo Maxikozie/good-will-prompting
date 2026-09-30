@@ -1,8 +1,8 @@
 import type { z } from 'zod';
 import { Json, Vec, type Db } from './db';
 
-/** Zod-parse rows coming out of the database in dev/test (BRAIN_PARSE_ROWS=0 or NODE_ENV=production turns it off). */
-export const PARSE_ROWS = process.env.BRAIN_PARSE_ROWS !== '0' && process.env.NODE_ENV !== 'production';
+/** Persisted input is validated in production too; there is no validation bypass. */
+export const PARSE_ROWS = true;
 
 export function parseRow<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
   return PARSE_ROWS ? schema.parse(value) : (value as z.infer<S>);

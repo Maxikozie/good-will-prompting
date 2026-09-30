@@ -1,3 +1,8 @@
+import { MessagesSchema } from '../security/model';
+import { reserveModelCall } from '../security/budget';
+import { deadline } from '../security/runtime';
+import { LIMITS } from '../security/limits';
+import { boundText, parseJson } from '../security/input';
 import type { z } from 'zod';
 import { inputHash, type LLMCache } from './cache';
 import { LLMValidationError } from './errors';
@@ -5,15 +10,20 @@ import type { CompleteOpts, LLMProvider, Message } from './types';
 
 /** Pull a JSON value out of model text: plain JSON, ```json fences, or JSON surrounded by prose. */
 export function extractJson(text: string): unknown {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  const candidate = fenced ? fenced[1]! : trimmed;
+  const trimmed = boundText(text, LIMITS.modelResponseBytes).trim();
+  // String delimiters avoid overlapping whitespace/backtracking on malformed fenced output.
+  let candidate = trimmed;
+  if (trimmed.startsWith('```') && trimmed.endsWith('```') && trimmed.length >= 6) {
+    candidate = trimmed.slice(3, -3);
+    if (candidate.slice(0, 4).toLowerCase() === 'json') candidate = candidate.slice(4);
+    candidate = candidate.trim();
+  }
   try {
-    return JSON.parse(candidate);
+    return parseJson(candidate);
   } catch {
     const start = candidate.search(/[{[]/);
     const end = Math.max(candidate.lastIndexOf('}'), candidate.lastIndexOf(']'));
-    if (start >= 0 && end > start) return JSON.parse(candidate.slice(start, end + 1));
+    if (start >= 0 && end > start) return parseJson(candidate.slice(start, end + 1));
     throw new SyntaxError('no JSON found in the output');
   }
 }
@@ -25,10 +35,11 @@ export function describeIssues(err: z.ZodError): string {
     .join('; ');
 }
 
-export const MAX_RETRIES = 2;
+export const MAX_RETRIES = LIMITS.llmRetries;
 
 /** Raw text completion. Real providers implement this and inherit validation, retries and caching. */
 export abstract class JsonProvider implements LLMProvider {
+  readonly budgetsManaged = true as const;
   abstract readonly modelId: string;
 
   constructor(protected readonly cache?: LLMCache) {}
@@ -37,6 +48,7 @@ export abstract class JsonProvider implements LLMProvider {
   protected abstract raw(messages: readonly Message[], schema: z.ZodType): Promise<string>;
 
   async completeJSON<T>(schema: z.ZodType<T>, messages: readonly Message[], opts: CompleteOpts<T>): Promise<T> {
+    MessagesSchema.parse(messages);
     const key = { promptId: opts.promptId, promptVersion: opts.promptVersion, modelId: this.modelId, inputHash: inputHash(messages) };
 
     const cached = await this.cache?.get(key);
@@ -49,7 +61,9 @@ export abstract class JsonProvider implements LLMProvider {
     let lastOutput = '';
     let lastError = '';
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      lastOutput = await this.raw(convo, schema);
+      MessagesSchema.parse(convo);
+      await reserveModelCall(convo.map((m) => m.content));
+      lastOutput = boundText(await deadline(() => this.raw(convo, schema), LIMITS.llmTimeoutMs), LIMITS.modelResponseBytes);
       try {
         const parsed = schema.safeParse(extractJson(lastOutput));
         if (parsed.success) {

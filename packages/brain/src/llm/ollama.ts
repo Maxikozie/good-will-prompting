@@ -1,3 +1,7 @@
+import { LIMITS } from '../security/limits';
+import { parseEnv } from '../security/env';
+import { EmbeddingInputSchema } from '../security/model';
+import { reserveModelCall } from '../security/budget';
 import { z } from 'zod';
 import type { LLMCache } from './cache';
 import { LLMError } from './errors';
@@ -27,9 +31,10 @@ export class OllamaProvider extends JsonProvider {
 
   constructor(opts: OllamaOptions = {}) {
     super(opts.cache);
-    this.host = parseBaseUrl(opts.host ?? process.env.OLLAMA_HOST ?? DEFAULT_OLLAMA_HOST, 'OLLAMA_HOST');
-    this.modelId = `ollama:${opts.model ?? process.env.OLLAMA_MODEL ?? DEFAULT_OLLAMA_MODEL}`;
-    this.timeoutMs = opts.timeoutMs ?? Number(process.env.BRAIN_LLM_TIMEOUT_MS || 120_000);
+    const env = parseEnv();
+    this.host = parseBaseUrl(opts.host ?? env.OLLAMA_HOST ?? DEFAULT_OLLAMA_HOST, 'OLLAMA_HOST');
+    this.modelId = `ollama:${opts.model ?? env.OLLAMA_MODEL ?? DEFAULT_OLLAMA_MODEL}`;
+    this.timeoutMs = z.number().int().positive().max(LIMITS.llmTimeoutMs).parse(opts.timeoutMs ?? env.BRAIN_LLM_TIMEOUT_MS ?? LIMITS.llmTimeoutMs);
     this.fetchFn = opts.fetch ?? fetch;
   }
 
@@ -40,12 +45,12 @@ export class OllamaProvider extends JsonProvider {
     } catch {
       /* schema not expressible as JSON schema: plain JSON mode */
     }
-    const data = (await postJson(
+    const data = OllamaChatSchema.parse(await postJson(
       this.fetchFn,
       `${this.host}/api/chat`,
-      { model: this.modelId.slice('ollama:'.length), messages, stream: false, format, options: { temperature: 0, seed: 0 } },
+      { model: this.modelId.slice('ollama:'.length), messages, stream: false, format, options: { temperature: 0, seed: 0, num_predict: LIMITS.outputTokens } },
       { timeoutMs: this.timeoutMs, what: 'Ollama chat' },
-    )) as { message?: { content?: string } };
+    ));
     const content = data.message?.content;
     if (typeof content !== 'string') throw new LLMError('Ollama chat: response had no message content');
     return content;
@@ -61,6 +66,7 @@ export interface OllamaEmbedderOptions {
 
 /** nomic-embed-text via Ollama (768 dimensions, matches the vector(768) columns). */
 export class OllamaEmbedder implements Embedder {
+  readonly budgetsManaged = true as const;
   readonly modelId: string;
   readonly dimensions = 768;
   private readonly host: string;
@@ -68,23 +74,30 @@ export class OllamaEmbedder implements Embedder {
   private readonly fetchFn: FetchFn;
 
   constructor(opts: OllamaEmbedderOptions = {}) {
-    this.host = parseBaseUrl(opts.host ?? process.env.OLLAMA_HOST ?? DEFAULT_OLLAMA_HOST, 'OLLAMA_HOST');
-    this.modelId = `ollama:${opts.model ?? process.env.OLLAMA_EMBED_MODEL ?? DEFAULT_EMBED_MODEL}`;
-    this.timeoutMs = opts.timeoutMs ?? Number(process.env.BRAIN_LLM_TIMEOUT_MS || 120_000);
+    const env = parseEnv();
+    this.host = parseBaseUrl(opts.host ?? env.OLLAMA_HOST ?? DEFAULT_OLLAMA_HOST, 'OLLAMA_HOST');
+    this.modelId = `ollama:${opts.model ?? env.OLLAMA_EMBED_MODEL ?? DEFAULT_EMBED_MODEL}`;
+    this.timeoutMs = z.number().int().positive().max(LIMITS.llmTimeoutMs).parse(opts.timeoutMs ?? env.BRAIN_LLM_TIMEOUT_MS ?? LIMITS.llmTimeoutMs);
     this.fetchFn = opts.fetch ?? fetch;
   }
 
   async embed(texts: readonly string[]): Promise<number[][]> {
+    EmbeddingInputSchema.max(LIMITS.embeddingBatch).parse(texts);
     if (texts.length === 0) return [];
-    const data = (await postJson(
+    await reserveModelCall(texts, 0);
+    const data = OllamaEmbedSchema.parse(await postJson(
       this.fetchFn,
       `${this.host}/api/embed`,
       { model: this.modelId.slice('ollama:'.length), input: texts },
-      { timeoutMs: this.timeoutMs, what: 'Ollama embed' },
-    )) as { embeddings?: number[][] };
+      { timeoutMs: Math.min(this.timeoutMs, LIMITS.embeddingTimeoutMs), what: 'Ollama embed' },
+    ));
     const out = data.embeddings;
     if (!Array.isArray(out) || out.length !== texts.length) throw new LLMError('Ollama embed: unexpected number of embeddings');
     for (const v of out) if (!Array.isArray(v) || v.length !== this.dimensions) throw new LLMError(`Ollama embed: expected ${this.dimensions} dimensions`);
     return out;
   }
 }
+
+const timing = { model: z.string().optional(), created_at: z.string().optional(), total_duration: z.number().optional(), load_duration: z.number().optional(), prompt_eval_count: z.number().optional(), prompt_eval_duration: z.number().optional(), eval_count: z.number().optional(), eval_duration: z.number().optional() };
+const OllamaChatSchema = z.object({ ...timing, done: z.boolean().optional(), done_reason: z.string().optional(), message: z.object({ role: z.string().optional(), content: z.string().max(LIMITS.modelResponseBytes), thinking: z.string().max(LIMITS.modelResponseBytes).optional() }).strict() }).strict();
+const OllamaEmbedSchema = z.object({ ...timing, embeddings: z.array(z.array(z.number().finite()).length(768)).max(LIMITS.embeddingBatch) }).strict();

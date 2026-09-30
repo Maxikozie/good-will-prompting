@@ -1,3 +1,5 @@
+import { boundText } from '../security/input';
+import { LIMITS } from '../security/limits';
 import type { ClaimValue } from './claim';
 import type { Unit, ValueType } from './enums';
 
@@ -18,7 +20,7 @@ export interface NormalizeHint {
 const fold = (s: string) => s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 // ---------- number words (NL / FR / EN, 0..999)
-const WORDS: Record<string, number> = {};
+const WORDS: Record<string, number> = Object.create(null);
 const add = (n: number, ...ws: string[]) => ws.forEach((w) => (WORDS[w] = n));
 [
   [0, 'zero', 'nul'],
@@ -105,7 +107,7 @@ function parseDecimal(s: string): number | null {
 }
 
 // ---------- units
-const UNITS: Record<string, Unit> = {};
+const UNITS: Record<string, Unit> = Object.create(null);
 const unitsOf = (u: Unit, ...ws: string[]) => ws.forEach((w) => (UNITS[w] = u));
 unitsOf('days', 'd', 'dag', 'dagen', 'werkdag', 'werkdagen', 'kalenderdag', 'kalenderdagen', 'jour', 'jours', 'jour ouvrable', 'jours ouvrables', 'jour ouvre', 'jours ouvres', 'jour calendrier', 'jours calendrier', 'day', 'days', 'working day', 'working days', 'business day', 'business days', 'workday', 'workdays', 'calendar day', 'calendar days');
 unitsOf('hours', 'h', 'hr', 'hrs', 'u', 'uur', 'uren', 'hour', 'hours', 'heure', 'heures');
@@ -154,7 +156,7 @@ const cents = (n: number) => Math.round(n * 100);
 const finalizeNumber = (n: number, unit?: Unit) => (unit === 'eur' ? cents(n) : n);
 
 // ---------- dates
-const MONTHS: Record<string, number> = {};
+const MONTHS: Record<string, number> = Object.create(null);
 const month = (n: number, ...ws: string[]) => ws.forEach((w) => (MONTHS[w] = n));
 month(1, 'jan', 'janv', 'january', 'januari', 'janvier');
 month(2, 'feb', 'febr', 'february', 'februari', 'fevr', 'fevrier');
@@ -211,14 +213,14 @@ const BOOL: Record<string, boolean> = { yes: true, true: true, ja: true, oui: tr
 
 /** Normalize a raw extracted value. Pure and deterministic. */
 export function normalizeValue(raw: string, hint: NormalizeHint = {}): ClaimValue {
-  const r = raw.trim().slice(0, 500);
+  const r = boundText(raw, LIMITS.normalizerChars).trim();
   const f = fold(r);
   const text = (): ClaimValue => ({ type: 'text', raw: r, normalized: f });
 
   if (hint.type === 'enum') return { type: 'enum', raw: r, normalized: f.replace(/\s+/g, '_') };
   if (hint.type === 'text' || f === '') return text();
 
-  if (f in BOOL) return { type: 'bool', raw: r, normalized: BOOL[f] };
+  if (Object.hasOwn(BOOL, f)) return { type: 'bool', raw: r, normalized: BOOL[f]! };
 
   const date = parseDate(f);
   if (date) return { type: 'date', raw: r, normalized: date };

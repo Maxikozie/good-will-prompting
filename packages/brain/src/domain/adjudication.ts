@@ -16,7 +16,7 @@ export const ClaimScoreRowSchema = z.object({
   score: z.number().min(0).max(100),
   breakdown: ScoreBreakdownSchema,
   reasons: z.array(ReasonSchema),
-});
+}).strict();
 export type ClaimScoreRow = z.infer<typeof ClaimScoreRowSchema>;
 
 /** Which ladder rules fired for a fact, and what the decision left to do (correction tasks, owners to ask). */
@@ -24,12 +24,12 @@ export const FactDecisionSchema = z.object({
   runId: RunIdSchema,
   factId: FactIdSchema,
   rulesVersion: z.string().max(100),
-  fired: z.array(z.object({ id: z.string(), applies: z.boolean(), reasons: z.array(ReasonSchema) })),
+  fired: z.array(z.object({ id: z.string(), applies: z.boolean(), reasons: z.array(ReasonSchema) }).strict()),
   decidedBy: z.string().nullable(),
   cap: FactStatusSchema.optional(),
   correctionFor: z.array(ClaimIdSchema),
   escalateTo: z.array(ClaimIdSchema),
   scopeFit: z.number().min(0).max(1),
   independentCorroborations: z.number().int().min(0),
-});
+}).strict();
 export type FactDecision = z.infer<typeof FactDecisionSchema>;

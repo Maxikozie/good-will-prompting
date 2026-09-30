@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { parse } from 'yaml';
+import { readYaml } from '../security/input';
 import { SlotTemplateSchema, type Slot, type SlotTemplate } from '../domain';
 
 export const SLOTS_DIR = path.resolve(import.meta.dirname, '..', '..', 'slots');
@@ -12,7 +12,7 @@ export function loadSlotTemplates(dir = SLOTS_DIR): SlotTemplate[] {
     .readdirSync(dir)
     .filter((f) => f.endsWith('.yaml'))
     .sort()
-    .map((f) => SlotTemplateSchema.parse(parse(fs.readFileSync(path.join(dir, f), 'utf8'))));
+    .map((f) => readYaml(path.join(dir, f), SlotTemplateSchema));
 }
 
 /** Weight multiplier for slots the LLM proposed instead of a human-written template (SPEC §4). */

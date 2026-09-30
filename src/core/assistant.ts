@@ -1,3 +1,5 @@
+import { AssistantFixtureSchema } from './input-schemas';
+import { readJson } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { InputSource } from './types';
@@ -26,7 +28,7 @@ function fixtures(): Fixture[] {
   return fs
     .readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
-    .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as Fixture);
+    .map((f) => readJson(path.join(dir, f), AssistantFixtureSchema));
 }
 
 export function existingAssistant(question: string): { assistant: string; results: AssistantResult[] } {

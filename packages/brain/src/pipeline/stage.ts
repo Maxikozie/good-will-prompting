@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { withBudget } from '../security/budget';
 import type { z } from 'zod';
 import { RunIdSchema, type RunId } from '../domain';
 import { brainRepo } from '../store';
@@ -24,14 +26,19 @@ export function defineStage<I extends z.ZodType, O extends z.ZodType>(def: Stage
     const inputRun = (input as { runId?: unknown }).runId;
     const known: RunId | undefined = typeof inputRun === 'string' ? RunIdSchema.parse(inputRun) : undefined;
     try {
-      const { output, stats } = await def.run(ctx, input);
+      const initial = input as { principalId?: string; question?: string; runId?: RunId };
+      const runIdForBudget = known ?? RunIdSchema.parse(`run-${createHash('sha1').update(`${initial.question}|${initial.principalId}|${startedAt}`).digest('hex').slice(0, 12)}`);
+      const principal = initial.principalId ?? (known ? (await brainRepo.getRun(ctx.db, known))?.principalId : undefined);
+      if (!principal) throw new Error('Unknown run principal');
+      if (!known) initial.runId = runIdForBudget;
+      const { output, stats } = await withBudget({ db: ctx.db, runId: runIdForBudget, principal }, () => def.run(ctx, input));
       const parsed = def.output.parse(output) as z.infer<O>;
       const runId = known ?? RunIdSchema.parse((parsed as { runId?: unknown }).runId);
       await brainRepo.saveStageLog(ctx.db, { runId, stage: def.name, status: 'completed', startedAt, finishedAt: ctx.now().toISOString(), stats });
       ctx.log(`${def.name} ${JSON.stringify(stats)}`);
       return parsed;
     } catch (e) {
-      if (known) {
+      if (known && await brainRepo.getRun(ctx.db, known)) {
         const message = (e instanceof Error ? e.message : 'error').slice(0, 500);
         await brainRepo.saveStageLog(ctx.db, { runId: known, stage: def.name, status: 'failed', startedAt, finishedAt: ctx.now().toISOString(), stats: {}, error: message });
       }

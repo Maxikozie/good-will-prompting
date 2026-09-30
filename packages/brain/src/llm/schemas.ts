@@ -10,8 +10,8 @@ export const IntakeOutputSchema = z.object({
   matchesKnownSubject: z.boolean(),
   scope: ScopeSchema,
   questionType: QuestionTypeSchema,
-  proposedSlots: z.array(z.object({ id: snake, attribute: snake, required: z.boolean() })).max(8),
-});
+  proposedSlots: z.array(z.object({ id: snake, attribute: snake, required: z.boolean() }).strict()).max(8),
+}).strict();
 export type IntakeOutput = z.infer<typeof IntakeOutputSchema>;
 
 export const ExtractedClaimSchema = z.object({
@@ -24,10 +24,10 @@ export const ExtractedClaimSchema = z.object({
   polarity: PolaritySchema,
   modality: ModalitySchema,
   confidence: z.number().min(0).max(1),
-});
+}).strict();
 export type ExtractedClaim = z.infer<typeof ExtractedClaimSchema>;
 
-export const ExtractOutputSchema = z.object({ claims: z.array(ExtractedClaimSchema).max(40) });
+export const ExtractOutputSchema = z.object({ claims: z.array(ExtractedClaimSchema).max(40) }).strict();
 export type ExtractOutput = z.infer<typeof ExtractOutputSchema>;
 
 export const RelationSchema = z.enum(['agree', 'contradict', 'refine', 'supersede', 'scope_disjoint', 'unrelated']);
@@ -38,8 +38,8 @@ export const RelationOutputSchema = z.object({
   explanation: z.string().min(1).max(300),
   /** For "refine": the more specific claim; for "supersede": the newer claim that replaces the other. Otherwise null. */
   direction: z.enum(['a', 'b']).nullable().default(null),
-});
+}).strict();
 export type RelationOutput = z.infer<typeof RelationOutputSchema>;
 
-export const ComposeOutputSchema = z.object({ sentences: z.array(z.object({ factId: z.string().min(1).max(200), text: z.string().min(1).max(600) })).max(30) });
+export const ComposeOutputSchema = z.object({ sentences: z.array(z.object({ factId: z.string().min(1).max(200), text: z.string().min(1).max(600) }).strict()).max(30) }).strict();
 export type ComposeOutput = z.infer<typeof ComposeOutputSchema>;

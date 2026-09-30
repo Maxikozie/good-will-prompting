@@ -1,22 +1,21 @@
 import { createHash } from 'node:crypto';
-import fs from 'node:fs';
 import path from 'node:path';
-import { parse } from 'yaml';
+import { readText, parseYaml } from '../security/input';
 import { z } from 'zod';
 import { TierSchema } from '../domain';
-import { SCORING_FILE } from '../scoring/config';
+import { SCORING_FILE, ScoringConfigSchema } from '../scoring/config';
 
 export const LADDER_IDS = ['1_scope_split', '2_duplicate_older', '3_authority', '4_temporal_supersession', '5_newer_but_unverified', '6_consensus', '7_escalate'] as const;
 export type LadderId = (typeof LADDER_IDS)[number];
 
-const step = z.object({ id: z.string(), when: z.string().min(1), then: z.string().min(1), params: z.record(z.string(), z.unknown()).optional() });
+const step = z.object({ id: z.string(), when: z.string().min(1), then: z.string().min(1), params: z.record(z.string(), z.unknown()).optional() }).strict();
 
 export const RulesConfigSchema = z
   .object({
     version: z.number().int(),
-    status: z.object({ verifiedMinTier: TierSchema, verifiedMinDecay: z.number().min(0).max(1), likelyMinConfidence: z.number().min(0).max(100) }),
+    status: z.object({ verifiedMinTier: TierSchema, verifiedMinDecay: z.number().min(0).max(1), likelyMinConfidence: z.number().min(0).max(100) }).strict(),
     ladder: z.array(step),
-  })
+  }).strict()
   .superRefine((cfg, ctx) => {
     const ids = cfg.ladder.map((s) => s.id);
     if (ids.join() !== LADDER_IDS.join()) ctx.addIssue({ code: 'custom', message: `ladder must be exactly ${LADDER_IDS.join(' → ')}, got ${ids.join(' → ')}`, path: ['ladder'] });
@@ -38,10 +37,10 @@ export interface LadderParams {
 }
 
 const paramsSchemas = {
-  '3_authority': z.object({ strongTier: TierSchema, strongAuthority: z.number().min(0).max(1) }),
-  '5_newer_but_unverified': z.object({ conflictSeverity: z.enum(['high', 'medium', 'low']), statusCap: z.enum(['LIKELY', 'PROVISIONAL']) }),
-  '6_consensus': z.object({ minIndependentGroups: z.number().int().min(2), minScoreGap: z.number().min(0), statusCap: z.enum(['LIKELY', 'PROVISIONAL']) }),
-  '7_escalate': z.object({ conflictSeverity: z.enum(['high', 'medium', 'low']) }),
+  '3_authority': z.object({ strongTier: TierSchema, strongAuthority: z.number().min(0).max(1) }).strict(),
+  '5_newer_but_unverified': z.object({ conflictSeverity: z.enum(['high', 'medium', 'low']), statusCap: z.enum(['LIKELY', 'PROVISIONAL']) }).strict(),
+  '6_consensus': z.object({ minIndependentGroups: z.number().int().min(2), minScoreGap: z.number().min(0), statusCap: z.enum(['LIKELY', 'PROVISIONAL']) }).strict(),
+  '7_escalate': z.object({ conflictSeverity: z.enum(['high', 'medium', 'low']) }).strict(),
 };
 
 export interface Rules {
@@ -57,14 +56,19 @@ let cached: Rules | undefined;
 export function loadRules(rulesFile = RULES_FILE, scoringFile = SCORING_FILE): Rules {
   const isDefault = rulesFile === RULES_FILE && scoringFile === SCORING_FILE;
   if (isDefault && cached) return cached;
-  const rulesText = fs.readFileSync(rulesFile, 'utf8');
-  const config = RulesConfigSchema.parse(parse(rulesText));
+  const rulesText = readText(rulesFile);
+  const config = RulesConfigSchema.parse(parseYaml(rulesText));
+  for (const step of config.ladder) {
+    if (!Object.hasOwn(paramsSchemas, step.id) && step.params !== undefined) z.object({}).strict().parse(step.params);
+  }
+  const scoringText = readText(scoringFile);
+  ScoringConfigSchema.parse(parseYaml(scoringText));
   const p = (id: keyof typeof paramsSchemas) => paramsSchemas[id].parse(config.ladder.find((s) => s.id === id)?.params);
   const three = p('3_authority') as z.infer<(typeof paramsSchemas)['3_authority']>;
   const five = p('5_newer_but_unverified') as z.infer<(typeof paramsSchemas)['5_newer_but_unverified']>;
   const six = p('6_consensus') as z.infer<(typeof paramsSchemas)['6_consensus']>;
   const seven = p('7_escalate') as z.infer<(typeof paramsSchemas)['7_escalate']>;
-  const version = createHash('sha256').update(rulesText).update('\n--\n').update(fs.readFileSync(scoringFile, 'utf8')).digest('hex').slice(0, 16);
+  const version = createHash('sha256').update(rulesText).update('\n--\n').update(scoringText).digest('hex').slice(0, 16);
   const rules: Rules = {
     config,
     version,

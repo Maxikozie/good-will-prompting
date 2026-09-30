@@ -1,3 +1,7 @@
+import { MessagesSchema } from '../security/model';
+import { reserveModelCall } from '../security/budget';
+import { deadline } from '../security/runtime';
+import { LIMITS } from '../security/limits';
 import type { z } from 'zod';
 import type { PartialScope, Scope } from '../domain';
 import { loadPrompt, renderPrompt, type PromptId } from './prompts';
@@ -24,7 +28,11 @@ export interface Task<T> {
   opts: CompleteOpts<T>;
 }
 
-export const runTask = <T>(provider: LLMProvider, task: Task<T>): Promise<T> => provider.completeJSON(task.schema, task.messages, task.opts);
+export async function runTask<T>(provider: LLMProvider, task: Task<T>): Promise<T> {
+  MessagesSchema.parse(task.messages);
+  if (!provider.budgetsManaged) await reserveModelCall(task.messages.map((m) => m.content));
+  return deadline(() => provider.completeJSON(task.schema, task.messages, task.opts), LIMITS.llmTimeoutMs * (LIMITS.llmRetries + 1));
+}
 
 function task<T>(promptId: PromptId, schema: z.ZodType<T>, vars: Record<string, string>, check?: (v: T) => string | null): Task<T> {
   const tpl = loadPrompt(promptId);

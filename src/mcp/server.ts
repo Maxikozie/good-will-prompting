@@ -1,3 +1,6 @@
+import { toolBuckets } from '../../packages/brain/src/security/runtime';
+import { ResourceError } from '../../packages/brain/src/security/errors';
+import { LIMITS } from '../../packages/brain/src/security/limits';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import {
@@ -86,12 +89,14 @@ function ok(text: string): ToolResult {
 function guard(action: Action, fn: () => ToolResult): ToolResult {
   try {
     authorize(session.principal, action, { kind: 'service' });
+    toolBuckets.consume(session.principal.id, action);
     // Legacy storage has no per-document ACL. Require access to the entire vault before any read;
     // never use caller-selected country/client filters as authorization.
     authorize(session.principal, action, { kind: 'legacy-vault', allowedPrincipals: session.legacyVaultReaders });
     ensureVault();
     return fn();
   } catch (err) {
+    if (err instanceof ResourceError) return { isError: true, content: [{ type: 'text', text: `${err.status} ${err.message}` }] };
     if (err instanceof Forbidden) return { content: [{ type: 'text', text: '403 Forbidden' }], isError: true };
     const msg = err instanceof TaskError || err instanceof z.ZodError ? err.message : 'Internal error';
     if (!(err instanceof TaskError)) console.error('[trustlayer-mcp]', err);
@@ -110,7 +115,7 @@ server.registerTool(
       'Also adds in-scope knowledge the other assistant missed (e.g. Teams chats).',
     inputSchema: z.object({
       question: questionSchema.describe('The question being answered'),
-      sources: z.array(inputSourceSchema).max(20).describe('Sources returned by the existing assistant: {id?, hash?, title?, location?, snippet?}'),
+      sources: z.array(inputSourceSchema).max(LIMITS.documentsPerCase).describe('Sources returned by the existing assistant: {id?, hash?, title?, location?, snippet?}'),
       context: contextSchema.optional().describe('Optional scope; detected from the question when omitted'),
     }).strict(),
     annotations: { readOnlyHint: false },

@@ -183,7 +183,7 @@ describe('OllamaProvider', () => {
     const down = new OllamaProvider({ fetch: (async () => { throw new TypeError('fetch failed'); }) as never });
     await expect(down.completeJSON(Out, MSGS, OPTS)).rejects.toThrow(LLMError);
     const empty = new OllamaProvider({ fetch: (async () => okResponse({})) as never });
-    await expect(empty.completeJSON(Out, MSGS, OPTS)).rejects.toThrow(/no message content/);
+    await expect(empty.completeJSON(Out, MSGS, OPTS)).rejects.toThrow(/Invalid input/);
   });
 
   it('only accepts http(s) hosts', () => {
@@ -227,7 +227,7 @@ describe('createProvider / createEmbedder', () => {
   it('defaults to ollama and honours BRAIN_LLM_PROVIDER', () => {
     expect(createProvider({}).modelId).toMatch(/^ollama:/);
     expect(createProvider({ BRAIN_LLM_PROVIDER: 'fake' })).toBeInstanceOf(FakeProvider);
-    expect(() => createProvider({ BRAIN_LLM_PROVIDER: 'gpt' })).toThrow(/Unknown BRAIN_LLM_PROVIDER/);
+    expect(() => createProvider({ BRAIN_LLM_PROVIDER: 'gpt' })).toThrow(/Invalid environment configuration/);
   });
   it('anthropic requires a key', () => {
     vi.stubEnv('ANTHROPIC_API_KEY', '');

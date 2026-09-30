@@ -1,6 +1,9 @@
+import { z } from 'zod';
+import { PageSchema, RawMetaSchema, TaskSchema, QuerySchema } from './input-schemas';
+import { readJson, readText, parseJson, parseYaml, boundText } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
 import path from 'node:path';
-import { parse, stringify } from 'yaml';
+import { stringify } from 'yaml';
 import type { QueryLogEntry, Task, WikiPage } from './types';
 import { HASH_RE, META_DIR, PAGE_ID_RE, RAW_DIR, TASK_ID_RE, WIKI_DIR } from './util';
 
@@ -33,9 +36,10 @@ export function vaultExists(): boolean {
 // ---------- frontmatter ----------
 
 export function splitFrontmatter(src: string): { data: Record<string, unknown>; body: string } {
+  boundText(src);
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) return { data: {}, body: src };
-  const data = (parse(m[1]) ?? {}) as Record<string, unknown>;
+  const data = z.record(z.string(), z.unknown()).parse(parseYaml(m[1]) ?? {});
   return { data, body: m[2] };
 }
 
@@ -48,31 +52,7 @@ function pagePath(id: string): string {
 
 function toPage(id: string, src: string): WikiPage {
   const { data, body } = splitFrontmatter(src);
-  const d = data as Partial<WikiPage>;
-  return {
-    id,
-    title: String(d.title ?? id),
-    topic: String(d.topic ?? 'misc'),
-    owner: d.owner ?? null,
-    owner_team: d.owner_team ?? null,
-    author: d.author ?? null,
-    country: d.country ?? null,
-    client: d.client ?? null,
-    product: d.product ?? null,
-    source_type: d.source_type ?? 'wiki',
-    origin: d.origin ?? 'internal',
-    location: String(d.location ?? ''),
-    created: String(d.created ?? ''),
-    last_edited: String(d.last_edited ?? ''),
-    last_verified: d.last_verified ? String(d.last_verified) : null,
-    status: d.status ?? 'unverified',
-    sources: Array.isArray(d.sources) ? d.sources.map(String) : [],
-    supersedes: Array.isArray(d.supersedes) ? d.supersedes.map(String) : [],
-    superseded_by: d.superseded_by ?? null,
-    captured_in: d.captured_in ?? null,
-    claims: Array.isArray(d.claims) ? d.claims : [],
-    body: body.trim(),
-  };
+  return PageSchema.parse({ ...data, id, body: body.trim() });
 }
 
 export function listPages(): WikiPage[] {
@@ -82,7 +62,7 @@ export function listPages(): WikiPage[] {
     .filter((f) => f.endsWith('.md'))
     .map((f) => f.slice(0, -3))
     .filter((id) => PAGE_ID_RE.test(id))
-    .map((id) => toPage(id, fs.readFileSync(path.join(WIKI_DIR, `${id}.md`), 'utf8')))
+    .map((id) => toPage(id, readText(path.join(WIKI_DIR, `${id}.md`))))
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
@@ -90,11 +70,11 @@ export function getPage(id: string): WikiPage | null {
   if (!PAGE_ID_RE.test(id)) return null;
   const p = pagePath(id);
   if (!fs.existsSync(p)) return null;
-  return toPage(id, fs.readFileSync(p, 'utf8'));
+  return toPage(id, readText(p));
 }
 
 export function savePage(page: WikiPage): void {
-  const { id, body, ...meta } = page;
+  const { id, body, ...meta } = PageSchema.parse(page);
   const fm = stringify({ id, ...meta }, { lineWidth: 0 }).trimEnd();
   fs.writeFileSync(pagePath(id), `---\n${fm}\n---\n\n${body.trim()}\n`, 'utf8');
 }
@@ -103,7 +83,7 @@ export function savePage(page: WikiPage): void {
 
 function readManifest(): Record<string, RawMeta> {
   if (!fs.existsSync(MANIFEST_FILE)) return {};
-  return JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8')) as Record<string, RawMeta>;
+  return readJson(MANIFEST_FILE, z.record(z.string(), RawMetaSchema));
 }
 
 export function putRaw(hash: string, content: string, meta: RawMeta): void {
@@ -124,14 +104,14 @@ export function getRaw(hash: string): { hash: string; content: string; meta: Raw
   const ext = meta.ext === 'json' ? 'json' : 'md';
   const file = path.join(RAW_DIR, `${hash}.${ext}`);
   if (!fs.existsSync(file)) return null;
-  return { hash, content: fs.readFileSync(file, 'utf8'), meta };
+  return { hash, content: readText(file), meta };
 }
 
 // ---------- tasks ----------
 
 export function loadTasks(): Task[] {
   if (!fs.existsSync(TASKS_FILE)) return [];
-  return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')) as Task[];
+  return readJson(TASKS_FILE, z.array(TaskSchema));
 }
 
 export function saveTasks(tasks: Task[]): void {
@@ -157,7 +137,7 @@ export function loadQueries(): QueryLogEntry[] {
     .filter(Boolean)
     .flatMap((line) => {
       try {
-        return [JSON.parse(line) as QueryLogEntry];
+        return [QuerySchema.parse(parseJson(line))];
       } catch {
         return [];
       }

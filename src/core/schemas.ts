@@ -1,3 +1,4 @@
+import { LIMITS } from '../../packages/brain/src/security/limits';
 import { z } from 'zod';
 import { PAGE_ID_RE, PERSON_ID_RE, TASK_ID_RE, HASH_RE } from './util';
 
@@ -13,7 +14,7 @@ export const contextSchema = z
   })
   .strict();
 
-export const questionSchema = z.string().trim().min(3).max(500);
+export const questionSchema = z.string().trim().min(3).max(LIMITS.questionChars);
 
 export const inputSourceSchema = z
   .object({
@@ -32,7 +33,7 @@ export const personIdSchema = z.string().trim().regex(PERSON_ID_RE, 'Invalid per
 export const hashSchema = z.string().regex(HASH_RE);
 export const issueSchema = z.enum(['conflict', 'orphan', 'stale', 'gap', 'unverified', 'capture']);
 
-export const verifyBody = z.object({ question: questionSchema, sources: z.array(inputSourceSchema).max(20), context: contextSchema.optional() }).strict();
+export const verifyBody = z.object({ question: questionSchema, sources: z.array(inputSourceSchema).max(LIMITS.documentsPerCase), context: contextSchema.optional() }).strict();
 export const answerBody = z.object({ question: questionSchema, context: contextSchema.optional() }).strict();
 export const flagBody = z
   .object({

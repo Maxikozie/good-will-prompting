@@ -6,7 +6,7 @@ Source review on 2026-09-30, baseline **`ffdddc0`**, after pulling main and read
 
 Severity considers the actual exposure: localhost/mock fixtures today, with no assumed public deployment. **critical** means demonstrated broad catastrophic exposure; **high** means a reachable confidentiality/verification-authority failure; **medium** means a constrained integrity/privacy/availability failure or a concrete internal primitive that must be corrected before integration; **low** means limited-impact hardening. No critical issue was established. Internal Brain functions are not currently remotely callable; their defects are identified as such.
 
-The table records the **pre-fix baseline**. The subsequent [MCP authorization change](MCP_AUTH.md) addresses the MCP portion of F01, gates legacy MCP access for F02, corrects F07 tool annotations, and adds the Brain tool authorization boundary relevant to F14. HTTP exposure and repository-level findings remain open; this is not a claim that all findings are resolved. Each fix plan includes a regression test; none authorizes weakening existing checks. The table contains **18 findings: 2 high, 13 medium, 3 low**.
+The table records the **pre-fix baseline**. The subsequent [MCP authorization change](MCP_AUTH.md) addresses the MCP portion of F01, gates legacy MCP access for F02, corrects F07 tool annotations, and adds the Brain tool authorization boundary relevant to F14. The subsequent [verification token change](VERIFICATION_TOKENS.md) closes F10 through insert-only issuance and a monotonic use marker. Other HTTP exposure and repository-level findings remain open; this is not a claim that all findings are resolved. Each fix plan includes a regression test; none authorizes weakening existing checks. The table contains **18 findings: 2 high, 13 medium, 3 low**.
 
 ## Concrete findings
 
@@ -47,3 +47,7 @@ The table records the **pre-fix baseline**. The subsequent [MCP authorization ch
 2. F04/F08/F10/F11/F12: protect mutations, token lifecycle, audit and operational targets.
 3. F03/F09/F13/F14/F15/F16: bind provenance and enforce semantic/ACL boundaries before wiring the Brain pipeline.
 4. F05/F06/F07/F17/F18: minimize retained data, bound work and align transport/error/deployment behavior with its documented contract.
+
+## Resource-hardening update
+
+Strict input validation, bounded config/transport/model input, durable model budgets, tool token buckets, provider/DB deadlines and response-error redaction are implemented in the resource-limits branch. Database row schemas now run in production too. See [RESOURCE_LIMITS.md](RESOURCE_LIMITS.md) and [REGEX_AUDIT.md](REGEX_AUDIT.md) for scope and limitations. This does not close the separate provenance, semantic grounding, HTTP identity, retention or deployment findings above.

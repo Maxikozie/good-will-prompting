@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { readText, parseYaml, boundText } from '../security/input';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -31,21 +33,17 @@ export function loadPrompt(id: PromptId, version = CURRENT_VERSION): PromptTempl
   const key = `${id}.${version}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  if (!/^[a-z-]+$/.test(id) || !/^v\d+$/.test(version)) throw new LLMError(`bad prompt id/version: ${key}`);
+  if (id.length > 100 || version.length > 20 || !/^[a-z-]+$/.test(id) || !/^v\d+$/.test(version)) throw new LLMError(`bad prompt id/version: ${key}`);
   const file = path.join(PROMPTS_DIR, `${key}.md`);
   if (!fs.existsSync(file)) throw new LLMError(`prompt file not found: prompts/${key}.md`);
-  const src = fs.readFileSync(file, 'utf8');
+  const src = readText(file);
   const m = src.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!m) throw new LLMError(`prompt ${key}: missing frontmatter`);
-  const meta: Record<string, string> = {};
-  for (const line of m[1]!.split('\n')) {
-    const kv = line.match(/^(\w+):\s*(.*)$/);
-    if (kv) meta[kv[1]!] = kv[2]!.trim();
-  }
+  const meta = z.object({ id: z.enum(PROMPT_IDS), version: z.string().max(20), output: z.string().max(100), trusted: z.array(z.string().max(100)).max(30).default([]) }).strict().parse(parseYaml(m[1]!));
   if (meta.id !== id || meta.version !== version) throw new LLMError(`prompt ${key}: frontmatter id/version does not match the file name`);
   const parts = m[2]!.match(/^## system\n([\s\S]*?)\n## user\n([\s\S]*)$/);
   if (!parts) throw new LLMError(`prompt ${key}: needs "## system" followed by "## user"`);
-  const trusted = (meta.trusted ?? '').replace(/^\[|\]$/g, '').split(',').map((s) => s.trim()).filter(Boolean);
+  const trusted = meta.trusted;
   const tpl: PromptTemplate = { id, version, output: meta.output ?? '', trusted, system: parts[1]!.trim(), user: parts[2]!.trim(), hash: createHash('sha256').update(src).digest('hex') };
   cache.set(key, tpl);
   return tpl;
@@ -58,7 +56,7 @@ export function promptVersions(): Record<string, string> {
 
 /** Keep untrusted text from closing or faking the <document> wrapper. */
 export function sanitizeUntrusted(text: string): string {
-  return text.replace(/<(\/?\s*document)/gi, '‹$1').split('\u0000').join('');
+  return boundText(text).replace(/<(\/?\s*document)/gi, '‹$1').split('\u0000').join('');
 }
 
 /** Render a template. Values of placeholders not listed in `trusted` are sanitized; unknown or missing placeholders throw. */
@@ -91,5 +89,6 @@ const INJECTION_PATTERNS: [string, RegExp][] = [
 
 /** Names of instruction-like patterns found in a document (empty = clean). Flags, never blocks: the text stays data. */
 export function detectInjection(text: string): string[] {
+  boundText(text);
   return INJECTION_PATTERNS.filter(([, re]) => re.test(text)).map(([name]) => name);
 }

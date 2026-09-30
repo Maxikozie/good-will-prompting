@@ -1,4 +1,5 @@
-import fs from 'node:fs';
+import { PeopleFileSchema, OwnershipFileSchema, TopicsFileSchema } from './input-schemas';
+import { readJson } from '../../packages/brain/src/security/input';
 import path from 'node:path';
 import type { Country, Ownership, Person, Topic } from './types';
 import { MOCK_DIR, tokens } from './util';
@@ -21,17 +22,13 @@ export interface Org {
   topic(id: string | null | undefined): Topic | null;
 }
 
-function readJson<T>(file: string): T {
-  return JSON.parse(fs.readFileSync(path.join(MOCK_DIR, 'internal', file), 'utf8')) as T;
-}
-
 let cached: Org | null = null;
 
 export function loadOrg(): Org {
   if (cached) return cached;
-  const { people, teams } = readJson<{ people: Person[]; teams: TeamInfo[] }>('people.json');
-  const { ownership } = readJson<{ ownership: Ownership[] }>('ownership.json');
-  const { topics } = readJson<{ topics: Topic[] }>('topics.json');
+  const { people, teams } = readJson(path.join(MOCK_DIR, 'internal', 'people.json'), PeopleFileSchema);
+  const { ownership } = readJson(path.join(MOCK_DIR, 'internal', 'ownership.json'), OwnershipFileSchema);
+  const { topics } = readJson(path.join(MOCK_DIR, 'internal', 'topics.json'), TopicsFileSchema);
   const byId = new Map(people.map((p) => [p.id, p]));
   const norm = (s: string) => s.trim().toLowerCase();
   cached = {

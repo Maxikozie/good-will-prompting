@@ -11,5 +11,5 @@ export const StageLogSchema = z.object({
   finishedAt: IsoStringSchema,
   stats: z.record(z.string(), z.unknown()),
   error: z.string().max(500).optional(),
-});
+}).strict();
 export type StageLog = z.infer<typeof StageLogSchema>;

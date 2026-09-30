@@ -1,3 +1,4 @@
+import { embedWithLimits } from '../security/model';
 import { matchesQueryScope, type Scope, type WikiPage, type WikiSection } from '../domain';
 import type { Embedder } from '../llm';
 import type { EnrichmentConfig } from '../rules/enrichment';
@@ -15,7 +16,7 @@ export interface SectionHit {
  * drop pages whose declared scope conflicts with the question's scope, keep the top-k.
  */
 export async function searchSections(db: Db, embedder: Embedder, cfg: EnrichmentConfig, args: { text: string; principals: readonly string[]; scope: Scope }): Promise<SectionHit[]> {
-  const [vector] = await embedder.embed([args.text]);
+  const [vector] = await embedWithLimits(embedder, [args.text]);
   const raw = await repo.searchVisibleSections(db, vector!, { principals: args.principals, k: cfg.budgets.topK * cfg.budgets.overFetch });
   const pages = new Map((await repo.getPagesByIds(db, [...new Set(raw.map((h) => h.pageId))])).map((p) => [p.id as string, p]));
   const hits: SectionHit[] = [];

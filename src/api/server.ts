@@ -1,3 +1,7 @@
+import { readResponseJson } from '../../packages/brain/src/llm/http';
+import { LIMITS } from '../../packages/brain/src/security/limits';
+import { boundedValue } from '../../packages/brain/src/security/input';
+import { ResourceError } from '../../packages/brain/src/security/errors';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import path from 'node:path';
 import { z } from 'zod';
@@ -29,11 +33,11 @@ import {
   topicIdSchema,
   verifyBody,
 } from '../core/schemas';
-import { ROOT } from '../core/util';
+import { ROOT, ENV } from '../core/util';
 
-const PORT = Number(process.env.PORT ?? 5173);
-const HOST = process.env.HOST ?? '127.0.0.1';
-const isProd = process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
+const PORT = ENV.PORT ?? 5173;
+const HOST = ENV.HOST ?? '127.0.0.1';
+const isProd = ENV.NODE_ENV === 'production' || process.argv.includes('--prod');
 
 ensureVault();
 
@@ -77,9 +81,14 @@ function mockUser(req: Request): string | undefined {
 }
 
 const api = express.Router();
+api.use((req, _res, next) => {
+  boundedValue(req.body);
+  if (!['/assistant', '/health', '/expert'].includes(req.path)) z.object({}).strict().parse(req.query);
+  next();
+});
 
 api.get('/assistant', (req, res) => {
-  const q = questionSchema.parse(req.query.q);
+  const { q } = z.object({ q: questionSchema }).strict().parse(req.query);
   res.json(existingAssistant(q));
 });
 
@@ -141,11 +150,11 @@ api.get('/raw/:hash', (req, res) => {
 const STT_URL = 'https://api.elevenlabs.io/v1/speech-to-text';
 const STT_MAX = 20; // transcriptions per client per minute (they cost credits)
 const sttHits = new Map<string, { count: number; reset: number }>();
-api.post('/transcribe', express.raw({ type: (req) => /^audio\//.test(String(req.headers['content-type'] ?? '')), limit: '10mb' }), async (req, res) => {
+api.post('/transcribe', express.raw({ type: (req) => /^audio\//.test(String(req.headers['content-type'] ?? '')), limit: LIMITS.audioBodyBytes }), async (req, res) => {
   const type = String(req.headers['content-type'] ?? '').split(';')[0].trim();
   if (!/^audio\/[a-z0-9.+-]{1,40}$/.test(type)) return res.status(415).json({ error: 'Send audio (e.g. audio/webm)' });
   if (!Buffer.isBuffer(req.body) || req.body.length < 1000) return res.status(400).json({ error: 'Recording is empty or too short' });
-  const key = process.env.ELEVENLABS_API_KEY;
+  const key = ENV.ELEVENLABS_API_KEY;
   if (!key) return res.status(503).json({ error: 'Voice input is not configured (ELEVENLABS_API_KEY missing). Type your question instead.' });
 
   const ip = req.ip ?? 'unknown';
@@ -159,13 +168,16 @@ api.post('/transcribe', express.raw({ type: (req) => /^audio\//.test(String(req.
   form.append('tag_audio_events', 'false');
   form.append('file', new Blob([new Uint8Array(req.body)], { type }), `question.${type.split('/')[1].replace(/[^a-z0-9]/g, '') || 'webm'}`);
   try {
-    const r = await fetch(STT_URL, { method: 'POST', headers: { 'xi-api-key': key }, body: form, signal: AbortSignal.timeout(20_000) });
+    const r = await fetch(STT_URL, { method: 'POST', headers: { 'xi-api-key': key }, body: form, signal: AbortSignal.timeout(LIMITS.speechTimeoutMs) });
     if (!r.ok) {
       console.error(`[api] speech-to-text failed with HTTP ${r.status}`);
       return res.status(502).json({ error: 'Speech-to-text failed. Type your question instead.' });
     }
-    const data = (await r.json()) as { text?: unknown };
-    const text = typeof data.text === 'string' ? data.text.trim().slice(0, 500) : '';
+    const data = z.object({
+      text: z.string().max(LIMITS.documentChars), language_code: z.string().max(20).optional(), language_probability: z.number().min(0).max(1).optional(), transcription_id: z.string().max(200).optional(),
+      words: z.array(z.object({ text: z.string().max(1000), start: z.number(), end: z.number(), type: z.enum(['word', 'spacing', 'audio_event']), speaker_id: z.string().nullable().optional(), logprob: z.number().optional() }).strict()).max(100_000).optional(),
+    }).strict().parse(await readResponseJson(r));
+    const text = typeof data.text === 'string' ? data.text.trim().slice(0, LIMITS.questionChars) : '';
     if (!text) return res.status(422).json({ error: "Didn't catch that, try again" });
     res.json({ text });
   } catch {
@@ -175,8 +187,9 @@ api.post('/transcribe', express.raw({ type: (req) => /^audio\//.test(String(req.
 });
 
 // Demo helper: rebuild the vault from data/mock between recording takes. Disabled in production.
-api.post('/demo/reset', (_req, res) => {
+api.post('/demo/reset', (req, res) => {
   if (isProd) return res.status(404).json({ error: 'Not found' });
+  z.object({}).strict().parse(req.body ?? {});
   res.json(resetVault());
 });
 
@@ -186,6 +199,7 @@ api.use((_req, res) => {
 
 // Never leak stack traces; validation errors come back as a readable 400.
 function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+  if (err instanceof ResourceError) return res.status(err.status).json({ error: err.message });
   if (err instanceof z.ZodError) return res.status(400).json({ error: 'Invalid input', issues: err.issues.map((i) => `${i.path.join('.')}: ${i.message}`) });
   if (err instanceof TaskError) return res.status(409).json({ error: err.message });
   const status = (err as { status?: number })?.status;
@@ -196,7 +210,7 @@ function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFun
 }
 api.use(errorHandler);
 
-app.use('/api', rateLimit, express.json({ limit: '64kb', strict: true }), api);
+app.use('/api', rateLimit, express.json({ limit: LIMITS.jsonBodyBytes, strict: true }), api);
 app.use(errorHandler);
 
 async function start() {

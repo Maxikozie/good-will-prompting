@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { MIGRATIONS_DIR } from '../src/store/migrate';
+import { brainRepo } from '../src/store';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EDGE_TYPES, NODE_KINDS } from '../src/domain';
 import { migrate, pgliteDb, type Db } from '../src/store';
@@ -10,7 +14,7 @@ afterAll(async () => db.close());
 
 describe('migrations', () => {
   it('apply once and are idempotent', async () => {
-    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql', '005_adjudication.sql']);
+    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql', '005_adjudication.sql', '005_verification_token_use.sql', '006_resource_usage.sql']);
     expect(await migrate(db)).toEqual([]);
   });
 
@@ -56,4 +60,30 @@ describe('migrations', () => {
     const nullable = await db.query<{ is_nullable: string }>(`SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'brain' AND table_name = 'edge' AND column_name = 'run_id'`);
     expect(nullable.rows[0]!.is_nullable).toBe('YES');
   });
+});
+
+
+it('upgrades consumed requests without reopening them and prevents token rebinding', async () => {
+  const previous = await pgliteDb();
+  try {
+    // Actual original schema, before the used_at migration.
+    await previous.exec(fs.readFileSync(path.join(MIGRATIONS_DIR, '001_init.sql'), 'utf8'));
+    await previous.query(`INSERT INTO brain.case_run (id, question, principal_id, intent, status, rules_version, started_at)
+      VALUES ($1,$2,$3,$4::jsonb,'completed',$5,now())`, ['upgrade-run', 'test', 'user:test', '{}', '1']);
+    await previous.query(`INSERT INTO brain.fact (id,run_id,claim_key,subject,attribute,scope,status,confidence,needs_verification,impact)
+      VALUES ($1,$2,$3,$4,$5,$6::jsonb,'LIKELY',80,true,'low')`, ['upgrade-fact', 'upgrade-run', 'a'.repeat(40), 'leave', 'duration', '{}']);
+    for (const status of ['pending', 'completed', 'cancelled']) {
+      await previous.query(`INSERT INTO brain.verification_request (id,fact_id,requested_from_id,reason,status,token_jti,expires_at)
+        VALUES ($1,$2,$3,$4,$5,$6,now() + interval '1 day')`, [status, 'upgrade-fact', 'person', 'test', status, 'upgrade-' + status]);
+    }
+    await previous.exec(fs.readFileSync(path.join(MIGRATIONS_DIR, '005_verification_token_use.sql'), 'utf8'));
+    expect(await brainRepo.burnToken(previous, 'upgrade-completed')).toBe(false);
+    expect(await brainRepo.burnToken(previous, 'upgrade-cancelled')).toBe(false);
+    expect(await brainRepo.burnToken(previous, 'upgrade-pending')).toBe(true);
+    expect(await brainRepo.burnToken(previous, 'upgrade-pending')).toBe(false);
+    const spent = await previous.query<{ used_at: unknown }>('SELECT used_at FROM brain.verification_request WHERE id = $1', ['completed']);
+    expect(spent.rows[0]!.used_at).toBeTruthy();
+    await expect(previous.query('UPDATE brain.verification_request SET token_jti = $1 WHERE id = $2', ['new-jti', 'completed'])).rejects.toThrow(/immutable/);
+    await expect(previous.query("UPDATE brain.verification_request SET status = 'pending', used_at = NULL WHERE id = $1", ['completed'])).rejects.toThrow(/immutable/);
+  } finally { await previous.close(); }
 });

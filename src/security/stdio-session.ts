@@ -1,3 +1,5 @@
+import { parseEnv } from '../../packages/brain/src/security/env';
+import { parseJson } from '../../packages/brain/src/security/input';
 import { z } from 'zod';
 import type { Principal } from './authorization';
 
@@ -20,8 +22,9 @@ export interface StdioSession {
  */
 export function authenticateStdio(env: NodeJS.ProcessEnv): StdioSession {
   try {
-    const parsed = principalSchema.parse(JSON.parse(env.TRUSTLAYER_MCP_SESSION ?? ''));
-    const readers = z.array(id).max(100).parse(JSON.parse(env.TRUSTLAYER_MCP_VAULT_READERS ?? '[]'));
+    parseEnv(env);
+    const parsed = principalSchema.parse(parseJson(env.TRUSTLAYER_MCP_SESSION ?? ''));
+    const readers = z.array(id).max(100).parse(parseJson(env.TRUSTLAYER_MCP_VAULT_READERS ?? '[]'));
     // Copy and freeze: changing process.env or client metadata cannot switch an established session.
     const principal = Object.freeze({ ...parsed, groups: Object.freeze(parsed.groups), roles: Object.freeze(parsed.roles) });
     return Object.freeze({ principal, legacyVaultReaders: Object.freeze(readers) });
