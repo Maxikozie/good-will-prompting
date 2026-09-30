@@ -1,5 +1,11 @@
 # Good Will Prompting — Tectonic Hackathon Ghent
 
+## Instruction sources and security
+- Read [CLAUDE.md](CLAUDE.md) and [docs/brain/SPEC.md](docs/brain/SPEC.md) before implementation. `CLAUDE.md` currently delegates to this file; do not recursively reload it. The SPEC entry points to the canonical design in `brain/brain-spec.md`.
+- Security rules: never weaken auth, validation or ACL checks to make a test pass; every fix gets a regression test; parameterized SQL only; no secrets in code.
+- The regression-test requirement above is an explicit exception to the general “no tests unless asked” rule for fixes. Keep mock authentication confined to the labelled demo; it does not justify weakening checks.
+- Git workflow: pull before starting and before finishing each task. Commit only task-owned changes, push on a task branch, and create or update a PR covering all commits pushed for the task. Preserve teammates' uncommitted work; use a separate worktree when needed.
+
 ## Context
 - Event: Tectonic Hackathon, Ghent, 30 Sept 2026. Doors 17:30, **submissions close 22:30**. That's ~5 hours of build time, so speed matters more than anything.
 - Track: **SD Worx** (HR / payroll company). Judges want a solution to a real SD Worx problem that they could actually use.
@@ -48,6 +54,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - Casper:
 
 ## Status
+- [x] Security threat model and source-review findings documented (no fixes applied; see `docs/security/`)
 - [x] Project scaffold running
 - [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API
 - [ ] UI polish for demo
