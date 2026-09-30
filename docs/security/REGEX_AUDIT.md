@@ -8,13 +8,6 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 
 | Location | Pattern | Assessment |
 | --- | --- | --- |
-| test/security/injection.test.ts:42 | `/^\d{2}-.*\.md$/` | Controlled test input |
-| test/security/injection.test.ts:64 | `/UNTRUSTED DATA/` | Controlled test input |
-| test/security/injection.test.ts:64 | `/no tools/i` | Controlled test input |
-| test/security/injection.test.ts:93 | `/Forbidden object key/` | Controlled test input |
-| test/security/injection.test.ts:94 | `/Forbidden object key/` | Controlled test input |
-| test/security/injection.test.ts:95 | `/Forbidden object key/` | Controlled test input |
-| test/security/sql-source.test.ts:8 | `/\b(?:SELECT\b[\s\S]*\bFROM&#124;INSERT\s+INTO&#124;UPDATE\b[\s\S]*\bSET&#124;DELETE\s+FROM&#124;ON\s+CONFLICT&#124;CREATE\s+TABLE&#124;ALTER\s+TABLE&#124;DROP\s+TABLE)\b/i` | Controlled test input |
 | packages/brain/src/domain/brain-nodes.ts:82 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/claim.ts:48 | `/^[a-f0-9]{40}$/` | Fixed/linear pattern or bounded input as described above |
 | packages/brain/src/domain/evidence-nodes.ts:32 | `/^[a-f0-9]{64}$/` | Fixed/linear pattern or bounded input as described above |
@@ -180,12 +173,20 @@ Regression tests exercise a 200,000-character numeric payload, a malformed fence
 | src/core/util.ts:108 | `/\s+/g` | Fixed/linear pattern or bounded input as described above |
 | src/core/vault.ts:40 | `/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/` | Fixed/linear pattern or bounded input as described above |
 | src/verification/tokens.ts:32 | `/^[A-Za-z0-9_-]{1,64}$/` | Fixed/linear pattern or bounded input as described above |
+| test/security/injection.test.ts:42 | `/^\d{2}-.*\.md$/` | Controlled test input |
+| test/security/injection.test.ts:64 | `/UNTRUSTED DATA/` | Controlled test input |
+| test/security/injection.test.ts:64 | `/no tools/i` | Controlled test input |
+| test/security/injection.test.ts:93 | `/Forbidden object key/` | Controlled test input |
+| test/security/injection.test.ts:94 | `/Forbidden object key/` | Controlled test input |
+| test/security/injection.test.ts:95 | `/Forbidden object key/` | Controlled test input |
 | test/security/mcp.test.ts:115 | `/lotte.peeters/` | Controlled test input |
 | test/security/mcp.test.ts:151 | `/request-owner/` | Controlled test input |
 | test/security/mcp.test.ts:152 | `/owner-jti&#124;token_jti/` | Controlled test input |
 | test/security/mcp.test.ts:252 | `/429 Rate limit exceeded/` | Controlled test input |
 | test/security/mcp.test.ts:255 | `/429 Rate limit exceeded/` | Controlled test input |
 | test/security/resources.test.ts:57 | `/Invalid environment/` | Controlled test input |
+| test/security/resources.test.ts:62 | `/Invalid environment/` | Controlled test input |
+| test/security/sql-source.test.ts:8 | `/\b(?:SELECT\b[\s\S]*\bFROM&#124;INSERT\s+INTO&#124;UPDATE\b[\s\S]*\bSET&#124;DELETE\s+FROM&#124;ON\s+CONFLICT&#124;CREATE\s+TABLE&#124;ALTER\s+TABLE&#124;DROP\s+TABLE)\b/i` | Controlled test input |
 | test/security/verification.test.ts:33 | `/Invalid BRAIN_JWT configuration/` | Controlled test input |
 | test/security/verification.test.ts:76 | `/disabled in production/` | Controlled test input |
 | test/security/verification.test.ts:121 | `/immutable/` | Controlled test input |
