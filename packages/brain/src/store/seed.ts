@@ -23,6 +23,7 @@ import {
 } from '../domain';
 import type { Db } from './db';
 import { splitPassages } from '../evidence/passages';
+import { splitSections } from '../reference/sections';
 import { migrate } from './migrate';
 import * as evidenceRepo from './evidence-repo';
 import * as orgRepo from './org-repo';
@@ -33,30 +34,6 @@ import * as referenceRepo from './reference-repo';
 
 export const DEMO_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test', 'fixtures', 'demo');
 export const SEED_NOW = '2026-09-30T00:00:00.000Z'; // demo "today"
-
-export interface Section {
-  ordinal: number;
-  headingPath: string[];
-  start: number;
-  end: number;
-  text: string;
-}
-
-/** Heading-aware split: one section for the intro (title + lead-in), then one per `## ` heading. Offsets index into `text`. */
-export function splitSections(text: string): Section[] {
-  const starts: { at: number; heading: string | null }[] = [{ at: 0, heading: null }];
-  for (const m of text.matchAll(/^## (.+)$/gm)) starts.push({ at: m.index, heading: m[1]!.trim() });
-  const h1 = text.match(/^# (.+)$/m)?.[1]?.trim();
-  const out: Section[] = [];
-  starts.forEach((s, i) => {
-    const rawEnd = i + 1 < starts.length ? starts[i + 1]!.at : text.length;
-    const slice = text.slice(s.at, rawEnd);
-    const body = slice.trimEnd();
-    if (!body.trim()) return;
-    out.push({ ordinal: out.length, headingPath: [h1, s.heading].filter((x): x is string => !!x), start: s.at, end: s.at + body.length, text: body });
-  });
-  return out;
-}
 
 function frontmatter(src: string): { data: Record<string, any>; body: string } { // eslint-disable-line @typescript-eslint/no-explicit-any
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);

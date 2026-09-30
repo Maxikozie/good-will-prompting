@@ -1,0 +1,26 @@
+# SPEC §5 stage 50: budgets and the vocabulary the gap-targeted query builder uses. Queries are built from
+# subject + attribute + scope, never from the raw question.
+version: 1
+budgets:
+  maxQueriesPerGap: 3
+  maxQueriesPerRun: 12
+  topK: 5            # sections kept per query
+  overFetch: 4       # fetch topK × overFetch from the index, then filter on scope
+  maxLinkHops: 1     # follow outLinks of retrieved pages this many hops, only to pages whose title matches the subject
+# words that identify a subject in page titles (link-hop filter) and enrich its queries; unknown subjects fall back to the slot label
+subjects:
+  leave.small_leave.own_marriage:
+    terms: [klein verlet, verlof, huwelijk, congé, mariage, leave, marriage]
+# how each attribute is written in wiki text (NL / FR / EN), used as query words
+attributes:
+  duration:         [aantal dagen, duur, werkdagen, durée, jours, number of days]
+  eligibility:      [wie heeft recht, voorwaarden, recht op, bénéficiaires, eligibility]
+  timing_window:    [wanneer opnemen, termijn, periode, délai, when to take]
+  pay_continuation: [loon doorbetaald, gewaarborgd loon, salaire garanti, paid leave]
+  proof_required:   [bewijsstuk, attest, huwelijksakte, justificatif, proof]
+  legal_basis:      [wettelijke basis, koninklijk besluit, cao, base légale, legal basis]
+  effective_from:   [ingangsdatum, geldt sinds, van kracht vanaf, en vigueur depuis, effective from]
+  deadline:         [melden, vooraf, termijn, préavis, notice]
+countries:
+  BE: [België, Belgique, Belgium]
+  NL: [Nederland, Pays-Bas, Netherlands]

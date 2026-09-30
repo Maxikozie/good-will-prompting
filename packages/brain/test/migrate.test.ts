@@ -14,7 +14,7 @@ afterAll(async () => db.close());
 
 describe('migrations', () => {
   it('apply once and are idempotent', async () => {
-    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_verification_token_use.sql']);
+    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql', '005_verification_token_use.sql']);
     expect(await migrate(db)).toEqual([]);
   });
 
@@ -26,7 +26,7 @@ describe('migrations', () => {
       'evidence.document', 'evidence.snapshot', 'evidence.passage', 'evidence.claim',
       'reference.wiki_page', 'reference.wiki_snapshot', 'reference.wiki_section', 'reference.reference_fact',
       'brain.case_run', 'brain.fact', 'brain.gap', 'brain.conflict', 'brain.canonical', 'brain.attribution',
-      'brain.verification_request', 'brain.verification_event', 'brain.org_event', 'brain.edge', 'brain.llm_cache', 'brain.run_stage',
+      'brain.verification_request', 'brain.verification_event', 'brain.org_event', 'brain.edge', 'brain.llm_cache', 'brain.run_stage', 'brain.claim_group',
     ]) expect(tables, t).toContain(t);
   });
 
@@ -76,7 +76,7 @@ it('upgrades consumed requests without reopening them and prevents token rebindi
       await previous.query(`INSERT INTO brain.verification_request (id,fact_id,requested_from_id,reason,status,token_jti,expires_at)
         VALUES ($1,$2,$3,$4,$5,$6,now() + interval '1 day')`, [status, 'upgrade-fact', 'person', 'test', status, 'upgrade-' + status]);
     }
-    await previous.exec(fs.readFileSync(path.join(MIGRATIONS_DIR, '004_verification_token_use.sql'), 'utf8'));
+    await previous.exec(fs.readFileSync(path.join(MIGRATIONS_DIR, '005_verification_token_use.sql'), 'utf8'));
     expect(await brainRepo.burnToken(previous, 'upgrade-completed')).toBe(false);
     expect(await brainRepo.burnToken(previous, 'upgrade-cancelled')).toBe(false);
     expect(await brainRepo.burnToken(previous, 'upgrade-pending')).toBe(true);

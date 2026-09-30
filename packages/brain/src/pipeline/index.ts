@@ -7,6 +7,8 @@ export { snapshot } from './10-snapshot';
 export { extract } from './20-extract';
 export { align } from './30-align';
 export { gaps } from './40-gaps';
+export { enrich } from './50-enrich';
+export * from './bridge';
 
 import { orgRepo } from '../store';
 import type { PipelineCtx } from './context';
@@ -15,6 +17,7 @@ import { snapshot } from './10-snapshot';
 import { extract } from './20-extract';
 import { align } from './30-align';
 import { gaps } from './40-gaps';
+import { enrich } from './50-enrich';
 import type { AgentDocument } from '../evidence';
 import type { PartialScope, RunId } from '../domain';
 
@@ -44,4 +47,12 @@ export async function runThroughGaps(ctx: PipelineCtx, input: EvidencePhaseInput
   const a = await align(ctx, { runId: phase.intake.runId, slotTemplate });
   const g = await gaps(ctx, { runId: phase.intake.runId, slotTemplate });
   return { ...phase, align: a, gaps: g };
+}
+
+/** Stages 00 → 50: evidence, alignment, gaps, then gap-targeted enrichment from the wiki. */
+export async function runThroughEnrich(ctx: PipelineCtx, input: EvidencePhaseInput) {
+  const through = await runThroughGaps(ctx, input);
+  const principals = input.principals ?? (await orgRepo.principalSetFor(ctx.db, input.principalId));
+  const e = await enrich(ctx, { runId: through.intake.runId, slotTemplate: through.intake.slotTemplate, principals });
+  return { ...through, enrich: e };
 }

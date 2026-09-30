@@ -20,7 +20,7 @@ Use `VerificationTokens.issue` for signing. Persist the verified token's `jti`, 
 
 The same transaction locks the fact and performs a conditional `UPDATE ... SET used_at = now(), status = 'completed' WHERE token_jti = $1 AND used_at IS NULL AND status = 'pending' AND expires_at > now() RETURNING id`. Exactly one caller wins. Only the winner invokes the business action callback, which must use the provided transaction for both the action and its audit. A failed action rolls back consumption and all transactional writes. External notifications belong after commit.
 
-Migration `004_verification_token_use.sql` backfills completed tokens, makes token bindings immutable, and prevents clearing `used_at` or reopening terminal requests. Repository issuance is insert-only, closing the previous upsert replay path. Apply migrations before starting the Brain backend; `seedDemo` already migrates automatically.
+Migration `005_verification_token_use.sql` backfills completed tokens, makes token bindings immutable, and prevents clearing `used_at` or reopening terminal requests. Repository issuance is insert-only, closing the previous upsert replay path. Apply migrations before starting the Brain backend; `seedDemo` already migrates automatically.
 
 The MCP registration requires a real `VerificationService` in `BrainToolDependencies.verification`; the injectable `verifyToken` callback has been removed. The `submitVerification` business callback applies the action and audit; **it must not burn the token again**. The callback still owns adjudication, self-verification tier caps, four-eyes approval rules, and reassignment-target policy. This change does not fabricate the unfinished stages 60–90 or make the standard six-tool stdio executable expose them.
 

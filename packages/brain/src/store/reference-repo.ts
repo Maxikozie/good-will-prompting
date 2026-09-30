@@ -106,3 +106,58 @@ export async function listFactsBySubject(db: Db, subject: string, attribute?: st
   const r = await db.query('SELECT * FROM reference.reference_fact WHERE subject = $1 AND ($2::text IS NULL OR attribute = $2) ORDER BY id', [subject, attribute ?? null]);
   return r.rows.map(referenceFactFromRow);
 }
+
+export async function getPagesByIds(db: Db, ids: readonly string[]): Promise<WikiPage[]> {
+  if (!ids.length) return [];
+  const r = await db.query('SELECT * FROM reference.wiki_page WHERE id = ANY($1::text[]) ORDER BY id', [[...ids]]);
+  return r.rows.map(pageFromRow);
+}
+
+export async function listAllPages(db: Db): Promise<WikiPage[]> {
+  const r = await db.query('SELECT * FROM reference.wiki_page ORDER BY id');
+  return r.rows.map(pageFromRow);
+}
+
+/** Sections that still have no embedding (with their text), so ingestion embeds each section once. */
+export async function listSectionsWithoutEmbedding(db: Db): Promise<{ id: string; text: string }[]> {
+  const r = await db.query<{ id: string; text: string }>('SELECT id, text FROM reference.wiki_section WHERE embedding IS NULL ORDER BY id');
+  return r.rows;
+}
+
+export interface VisibleHit {
+  section: WikiSection;
+  pageId: string;
+  score: number;
+}
+
+/**
+ * Cosine search over the LATEST snapshot of every wiki page the caller may read (page ACL in SQL).
+ * Scope and link filtering happen in the caller, so over-fetch with `k`.
+ */
+export async function searchVisibleSections(db: Db, embedding: readonly number[], opts: { principals: readonly string[]; k: number }): Promise<VisibleHit[]> {
+  const r = await db.query(
+    `SELECT s.*, n.page_id AS page_id, 1 - (s.embedding <=> $1::vector) AS score
+       FROM reference.wiki_section s
+       JOIN reference.wiki_snapshot n ON n.id = s.snapshot_id
+       JOIN reference.wiki_page p ON p.id = n.page_id
+      WHERE s.embedding IS NOT NULL
+        AND ('*' = ANY(p.allowed_principals) OR p.allowed_principals && $2::text[])
+        AND n.fetched_at = (SELECT max(fetched_at) FROM reference.wiki_snapshot WHERE page_id = p.id)
+      ORDER BY s.embedding <=> $1::vector, s.id
+      LIMIT $3`,
+    [`[${embedding.join(',')}]`, [...opts.principals], opts.k],
+  );
+  return r.rows.map((x: Row) => ({ section: sectionFromRow(x), pageId: x.page_id, score: Number(x.score) }));
+}
+
+/** Sections of a page's latest snapshot, in order. */
+export async function listLatestSections(db: Db, pageId: string): Promise<{ snapshot: WikiSnapshot; sections: WikiSection[] } | null> {
+  const snap = await latestSnapshot(db, pageId);
+  return snap ? { snapshot: snap, sections: await listSections(db, snap.id) } : null;
+}
+
+/** Embeddings of a snapshot's sections, by section id (for the circularity guard). */
+export async function getSectionEmbeddings(db: Db, snapshotId: string): Promise<Map<string, number[]>> {
+  const r = await db.query<{ id: string; e: string }>('SELECT id, embedding::text AS e FROM reference.wiki_section WHERE snapshot_id = $1 AND embedding IS NOT NULL', [snapshotId]);
+  return new Map(r.rows.map((x) => [x.id, JSON.parse(x.e) as number[]]));
+}

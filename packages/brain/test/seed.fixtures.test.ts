@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
 import { describe, expect, it } from 'vitest';
-import { DEMO_DIR, splitSections } from '../src/store/seed';
+import { splitSections } from '../src/reference';
+import { DEMO_DIR } from '../src/store/seed';
 
 const ROOT = path.resolve(path.dirname(DEMO_DIR), '..', '..');
 
