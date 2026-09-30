@@ -1,3 +1,4 @@
+import { INSERTS, COUNTS } from './statements';
 import type { z } from 'zod';
 import { Json, Vec, type Db } from './db';
 
@@ -27,21 +28,19 @@ export function clean<T extends Record<string, unknown>>(o: T): T {
   return o;
 }
 
-/**
- * INSERT … ON CONFLICT (pk) DO UPDATE (or DO NOTHING for immutable rows). Table and column names are static strings
- * from the repository code; every value is a bound parameter.
- */
+/** Resolve an exact reviewed statement; table, column set, conflict key and mode fail closed. */
 export async function upsert(db: Db, table: string, row: Cols, pk: string[], mode: 'update' | 'nothing' = 'update'): Promise<void> {
-  const cols = Object.keys(row);
-  const sets = cols.filter((c) => !pk.includes(c)).map((c) => `${c} = EXCLUDED.${c}`);
-  // immutable rows (snapshots, passages): ignore ANY conflict (primary key or the (document, content hash) unique key)
-  const conflictSql = mode === 'nothing' || sets.length === 0 ? 'ON CONFLICT DO NOTHING' : `ON CONFLICT (${pk.join(', ')}) DO UPDATE SET ${sets.join(', ')}`;
-  const castFor = (v: Cell) => (v instanceof Json ? '::jsonb' : v instanceof Vec ? '::vector' : '');
-  const ph = cols.map((c, i) => `$${i + 1}${castFor(row[c])}`);
-  await db.query(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${ph.join(', ')}) ${conflictSql}`, cols.map((c) => row[c]));
+  if (!Object.hasOwn(INSERTS, table)) throw new Error('Unapproved SQL table');
+  const statement = INSERTS[table as keyof typeof INSERTS];
+  const columns: readonly string[] = statement.columns;
+  if (mode !== statement.mode || pk.join(',') !== statement.pk.join(',') || Object.keys(row).length !== columns.length || columns.some((c) => !Object.hasOwn(row, c))) {
+    throw new Error('Unapproved SQL columns or conflict target');
+  }
+  await db.query(statement.sql, columns.map((c) => row[c]));
 }
 
 export async function count(db: Db, table: string): Promise<number> {
-  const r = await db.query<{ n: string | number }>(`SELECT count(*) AS n FROM ${table}`);
+  if (!Object.hasOwn(COUNTS, table)) throw new Error('Unapproved SQL table');
+  const r = await db.query<{ n: string | number }>(COUNTS[table as keyof typeof COUNTS]);
   return Number(r.rows[0]!.n);
 }

@@ -162,10 +162,11 @@ describe('task builders', () => {
     expect(c.messages[1]!.content).toContain('"factId":"f1"');
   });
 
-  it('verbatimQuotes: whitespace-insensitive, catches paraphrases', () => {
+  it('verbatimQuotes: exact, rejects changed whitespace and paraphrases', () => {
     const check = verbatimQuotes('De werknemer   bezorgt\nbinnen 7 dagen een kopie.');
     const claim = (quote: string) => ({ claims: [{ quote, subject: 'a.b', attribute: 'x', valueRaw: '7', qualifiers: { conditions: [] }, temporal: {}, polarity: 'affirms', modality: 'rule', confidence: 1 }] }) as ExtractOutput;
-    expect(check(claim('werknemer bezorgt binnen 7 dagen'))).toBeNull();
+    expect(check(claim('werknemer   bezorgt\nbinnen 7 dagen'))).toBeNull();
+    expect(check(claim('werknemer bezorgt binnen 7 dagen'))).toMatch(/not verbatim/);
     expect(check(claim('werknemer levert binnen 7 dagen'))).toMatch(/not verbatim/);
   });
 });

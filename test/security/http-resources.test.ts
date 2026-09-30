@@ -27,14 +27,26 @@ test('HTTP rejects unknown fields and oversized bodies while demo answers still 
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.ok(ready, logs);
-    // Regression: the Ask view's first call loads the committed existing-assistant fixtures through the strict schema.
-    assert.equal((await fetch(`${base}/assistant?q=${encodeURIComponent('Sunday overtime premium in Belgium?')}`)).status, 200);
-    const post =(body: unknown) => fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const assistant = await fetch(`${base}/assistant?q=${encodeURIComponent('Sunday overtime in Belgium?')}`);
+    assert.equal(assistant.status, 200);
+    const found = await assistant.json();
+    assert.ok(found.results.length > 0);
+    const verification = await fetch(`${base}/verify`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ question: 'Sunday overtime in Belgium?', sources: found.results.map(({ id, title, location, snippet }: { id: string; title: string; location: string; snippet: string }) => ({ id, title, location, snippet })) }),
+    });
+    assert.equal(verification.status, 200);
+    assert.ok((await verification.json()).sources.length > 0);
+    const post = (body: unknown) => fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal((await post({ question: 'Sunday overtime in Belgium?' })).status, 200);
     for (const body of [{ question: 'leave', injected: true }, { question: 'x'.repeat(LIMITS.questionChars + 1) }]) {
       const response = await post(body); assert.equal(response.status, 400);
       assert.equal((await response.json()).error, 'Invalid input');
     }
+    const polluted = await fetch(`${base}/answer`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: '{"question":"leave","context":{"__proto__":{"polluted":true}}}',
+    });
+    assert.equal(polluted.status, 400);
+    assert.equal((await polluted.json()).error, 'Forbidden object key');
     const tooLarge = await post({ question: 'x'.repeat(LIMITS.jsonBodyBytes) });
     assert.equal(tooLarge.status, 413); assert.equal((await tooLarge.json()).error, 'Request too large');
     assert.equal((await post({ question: 'Sunday overtime in Belgium?' })).status, 200);
