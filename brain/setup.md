@@ -31,6 +31,8 @@ TRUSTLAYER_MCP_VAULT_READERS='["group:demo"]'
 ```
 `.env` is read once at startup. After editing it, restart `npm run dev` and restart the MCP server in Claude Code (`/mcp` → restart, or reopen `claude`). Never commit `.env`.
 
+To use the MCP server in your own Claude (Claude Code or the desktop chat app), follow [claude-mcp.md](claude-mcp.md). It also has a copy-paste prompt for your agent.
+
 ## Check that everything works
 ```bash
 npm run typecheck        # root
