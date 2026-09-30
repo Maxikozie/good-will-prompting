@@ -47,3 +47,7 @@ The table records the **pre-fix baseline**. The subsequent [MCP authorization ch
 2. F04/F08/F10/F11/F12: protect mutations, token lifecycle, audit and operational targets.
 3. F03/F09/F13/F14/F15/F16: bind provenance and enforce semantic/ACL boundaries before wiring the Brain pipeline.
 4. F05/F06/F07/F17/F18: minimize retained data, bound work and align transport/error/deployment behavior with its documented contract.
+
+## Resource-hardening update
+
+Strict input validation, bounded config/transport/model input, durable model budgets, tool token buckets, provider/DB deadlines and response-error redaction are implemented in the resource-limits branch. Database row schemas now run in production too. See [RESOURCE_LIMITS.md](RESOURCE_LIMITS.md) and [REGEX_AUDIT.md](REGEX_AUDIT.md) for scope and limitations. This does not close the separate provenance, semantic grounding, HTTP identity, retention or deployment findings above.
