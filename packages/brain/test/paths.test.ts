@@ -10,7 +10,7 @@ import { loadDemo } from '../src/store/seed';
 
 // Regression: Aikido "Potential file inclusion attack via reading file". Every file read/write is resolved inside a fixed base.
 
-const OUTSIDE = path.dirname(PROJECT_ROOT); // exists, is not the repo and not the temp dir
+const OUTSIDE = path.parse(PROJECT_ROOT).root; // exists, contains but is never inside the repo or the temp dir
 const stub: LLMProvider = { modelId: 'stub', completeJSON: async () => { throw new Error('should not be called'); } };
 
 let base: string;
@@ -73,7 +73,7 @@ describe('loaders refuse out-of-base paths', () => {
   it('loadSlotTemplates: default dir still loads, a dir outside the project is refused', () => {
     expect(loadSlotTemplates().map((t) => t.subject)).toContain('leave.small_leave.own_marriage');
     expect(() => loadSlotTemplates(OUTSIDE)).toThrow(PathError);
-    expect(() => loadSlotTemplates(path.join(SLOTS_DIR, '..', '..', '..', '..', '..'))).toThrow(PathError);
+    expect(() => loadSlotTemplates(path.join(SLOTS_DIR, ...Array<string>(64).fill('..')))).toThrow(PathError);
   });
   it('RecordingProvider: outDir outside the project is refused, promptIds cannot traverse', async () => {
     expect(() => new RecordingProvider(stub, OUTSIDE)).toThrow(PathError);
