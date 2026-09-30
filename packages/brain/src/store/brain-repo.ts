@@ -1,6 +1,8 @@
 import {
   AttributionSchema,
   CanonicalSchema,
+  ClaimScoreRowSchema,
+  FactDecisionSchema,
   CaseRunSchema,
   ConflictSchema,
   FactSchema,
@@ -11,6 +13,8 @@ import {
   VerificationRequestSchema,
   type Attribution,
   type Canonical,
+  type ClaimScoreRow,
+  type FactDecision,
   type CaseRun,
   type Conflict,
   type Fact,
@@ -260,4 +264,46 @@ export async function saveClaimGroups(db: Db, rows: readonly ClaimGroupRow[]): P
 export async function listClaimGroups(db: Db, runId: string): Promise<ClaimGroupRow[]> {
   const r = await db.query('SELECT * FROM brain.claim_group WHERE run_id = $1 ORDER BY claim_id', [runId]);
   return r.rows.map((x: Row) => ({ runId: x.run_id, claimId: x.claim_id, sourceKind: x.source_kind, sourceId: x.source_id, groupId: x.group_id }));
+}
+
+// ---------------------------------------------------------------- adjudication (stage 60)
+export async function deleteConflictsByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.conflict WHERE run_id = $1', [runId]);
+}
+
+/** Stage 60 recomputes scores and decisions as a unit. */
+export async function deleteAdjudicationByRun(db: Db, runId: string): Promise<void> {
+  await db.query('DELETE FROM brain.claim_score WHERE run_id = $1', [runId]);
+  await db.query('DELETE FROM brain.fact_decision WHERE run_id = $1', [runId]);
+}
+
+export async function saveClaimScore(db: Db, row: ClaimScoreRow): Promise<void> {
+  const r = ClaimScoreRowSchema.parse(row);
+  await upsert(db, 'brain.claim_score', {
+    run_id: r.runId, claim_id: r.claimId, source_kind: r.sourceKind, source_id: r.sourceId, fact_id: r.factId, role: r.role, code: r.code, score: r.score,
+    breakdown: json(r.breakdown), reasons: json(r.reasons),
+  }, ['run_id', 'claim_id']);
+}
+
+export async function listClaimScores(db: Db, runId: string): Promise<ClaimScoreRow[]> {
+  const r = await db.query('SELECT * FROM brain.claim_score WHERE run_id = $1 ORDER BY fact_id, claim_id', [runId]);
+  return r.rows.map((x: Row) =>
+    parseRow(ClaimScoreRowSchema, clean({ runId: x.run_id, claimId: x.claim_id, sourceKind: x.source_kind, sourceId: x.source_id, factId: x.fact_id, role: x.role, code: opt(x.code), score: x.score, breakdown: x.breakdown, reasons: x.reasons })),
+  );
+}
+
+export async function saveFactDecision(db: Db, d: FactDecision): Promise<void> {
+  const v = FactDecisionSchema.parse(d);
+  await upsert(db, 'brain.fact_decision', {
+    run_id: v.runId, fact_id: v.factId, rules_version: v.rulesVersion, fired: json(v.fired), decided_by: v.decidedBy, cap: v.cap, correction_for: v.correctionFor, escalate_to: v.escalateTo,
+    scope_fit: v.scopeFit, independent_corroborations: v.independentCorroborations,
+  }, ['run_id', 'fact_id']);
+}
+
+export async function getFactDecision(db: Db, runId: string, factId: string): Promise<FactDecision | null> {
+  const r = await db.query('SELECT * FROM brain.fact_decision WHERE run_id = $1 AND fact_id = $2', [runId, factId]);
+  const x = r.rows[0] as Row | undefined;
+  return x
+    ? parseRow(FactDecisionSchema, clean({ runId: x.run_id, factId: x.fact_id, rulesVersion: x.rules_version, fired: x.fired, decidedBy: x.decided_by, cap: opt(x.cap), correctionFor: x.correction_for, escalateTo: x.escalate_to, scopeFit: x.scope_fit, independentCorroborations: x.independent_corroborations }))
+    : null;
 }

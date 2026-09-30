@@ -1,0 +1,38 @@
+# SPEC §7: the adjudication ladder. Evaluated in this order for every fact; the first rules that apply shape the result and
+# adjudicateFact records which ones fired. The ids and their order are validated at load time (src/rules/ladder-config.ts).
+# Parameters here are the ones the rules read; the scoring numbers live in scoring.yaml. rulesVersion = hash of both files.
+version: 1
+
+# SPEC §6: how a winner becomes a fact status
+status:
+  verifiedMinTier: T3          # VERIFIED needs a winner verified at this tier or higher ...
+  verifiedMinDecay: 0.5        # ... whose verification has not decayed below this factor (0.5^(days/halfLife)) ...
+  likelyMinConfidence: 70      # LIKELY needs at least this fact confidence ...
+  # ... and neither needs an open high-severity conflict. Everything else that has a winner is PROVISIONAL.
+
+ladder:
+  - id: 1_scope_split
+    when: claims differ only in scope keys (country, jointCommittee, employeeCategory, customer)
+    then: relabel the pair SCOPE_DISJOINT; keep only claims matching the query scope; no conflict
+  - id: 2_duplicate_older
+    when: DUPLICATE_OF across documents and one snapshot is an older version
+    then: the older claim is REJECTED (DUPLICATE_OLDER_VERSION); the newer inherits as support, never as an independent source
+  - id: 3_authority
+    when: exactly one side has tier T4 or source authority 1.0
+    then: that side wins; the other is REJECTED (CONTRADICTED_BY_AUTHORITY); a correction task goes to its owner
+    params: { strongTier: T4, strongAuthority: 1.0 }
+  - id: 4_temporal_supersession
+    when: same scope AND newer.effectiveFrom/lastVerifiedAt is later than older's AND newer.tier >= older.tier
+    then: newer SUPERSEDES older; older is REJECTED (SUPERSEDED_TEMPORAL) and its score is capped (gates.superseded)
+  - id: 5_newer_but_unverified      # newest != correct
+    when: newer by lastEditedAt but newer.tier < older.tier
+    then: older wins provisionally; newer is flagged NEWER_BUT_UNVERIFIED; the conflict stays OPEN at reduced severity; the fact is capped
+    params: { conflictSeverity: medium, statusCap: LIKELY }
+  - id: 6_consensus
+    when: at least minIndependentGroups independent groups (after DERIVED_FROM / DUPLICATE_OF merging) agree AND the score gap over the dissent is large enough
+    then: the majority wins; the dissent is REJECTED (CONTRADICTED_BY_CONSENSUS); the fact is capped until an owner confirms
+    params: { minIndependentGroups: 2, minScoreGap: 20, statusCap: LIKELY }
+  - id: 7_escalate
+    when: otherwise
+    then: the fact is DISPUTED; a verification request goes to the owners of all contradicting claims
+    params: { conflictSeverity: high }

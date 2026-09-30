@@ -8,7 +8,18 @@ authority:
 ownership: { active: 1.0, inactive: 0.4, none: 0.2 }
 consensusPerGroup: 0.35
 conflictPenalty: { high: 30, medium: 15, low: 5, max: 40 }
-gates: { expired: 10, superseded: 20, invalidated: 30, not_a_rule: 25 }
+gates: { expired: 10, superseded: 20, invalidated: 30, not_a_rule: 25, duplicate_older: 20 }
 bands: { trusted: 80, careful: 60 }
 # stage 40 (gaps): WEAK_SUPPORT when the best claim scores below `scoreBelow`, or the only independent source has authority below `lowAuthorityBelow`
 weakSupport: { scoreBelow: 60, lowAuthorityBelow: 0.5 }
+# half-life of a verification in days, used when a slot template does not set `halfLifeDays`
+halfLifeDays: 365
+# wiki pages carry no verification tier: an official page with an owner and a verification date counts as this tier, otherwise T0
+reference: { verifiedTier: T2 }
+# integrity I: unverified claims are neutral; when a verified document was edited afterwards and the share of changed claims is unknown
+integrity: { neverVerified: 0.5, unknownDrift: 0.5 }
+# usage U: Beta-smoothed resolved / (resolved + reopened); neutral when there is no data
+usage: { neutral: 0.5 }
+# SPEC §8.2: FactConfidence = min(100, winnerScore + corroborationBonus × min(1, independentCorroborations / corroborationsForFullBonus)) × ScopeFit
+corroboration: { bonus: 10, forFullBonus: 2 }
+scopeFit: { exact: 1.0, parent: 0.8, productUnknown: 0.6, otherCountry: 0 }

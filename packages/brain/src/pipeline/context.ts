@@ -1,6 +1,7 @@
 import type { Db } from '../store/db';
 import type { Embedder, LLMProvider } from '../llm';
 import type { SlotTemplate } from '../domain';
+import { rulesVersion } from '../rules/ladder-config';
 import { loadSlotTemplates } from '../rules/slots';
 
 /** Everything a stage needs. Stages are `(ctx, input) → output`; nothing is global. */
@@ -12,7 +13,7 @@ export interface PipelineCtx {
   templates: readonly SlotTemplate[];
   /** Pinned in tests; honours TRUSTLAYER_NOW like the rest of the repo. */
   now: () => Date;
-  /** Version stamp stored on every CaseRun (rules/rules.yaml arrives in a later step). */
+  /** Stored on every CaseRun: a hash of rules/rules.yaml + rules/scoring.yaml, validated at load time. */
   rulesVersion: string;
   log: (line: string) => void;
 }
@@ -27,5 +28,5 @@ export function defaultNow(): Date {
 }
 
 export function createContext(parts: Pick<PipelineCtx, 'db' | 'llm' | 'embedder'> & Partial<PipelineCtx>): PipelineCtx {
-  return { templates: loadSlotTemplates(), now: defaultNow, rulesVersion: '0-dev', log: () => {}, ...parts };
+  return { templates: loadSlotTemplates(), now: defaultNow, rulesVersion: rulesVersion(), log: () => {}, ...parts };
 }

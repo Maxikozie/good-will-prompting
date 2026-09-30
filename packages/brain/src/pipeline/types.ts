@@ -110,3 +110,16 @@ export const EnrichOutputSchema = z.object({
   queriesIssued: z.number().int().min(0),
 });
 export type EnrichOutput = z.infer<typeof EnrichOutputSchema>;
+
+export const AdjudicateInputSchema = z.object({ runId: RunIdSchema, slotTemplate: SlotTemplateSchema }).strict();
+export type AdjudicateInput = z.infer<typeof AdjudicateInputSchema>;
+
+export const AdjudicateOutputSchema = z.object({
+  runId: RunIdSchema,
+  /** fact id → final status. */
+  statuses: z.record(z.string(), z.string()),
+  openConflictIds: z.array(z.string()),
+  resolvedConflictIds: z.array(z.string()),
+  factsNeedingVerification: z.array(z.string()),
+});
+export type AdjudicateOutput = z.infer<typeof AdjudicateOutputSchema>;
