@@ -70,7 +70,7 @@ before(async () => {
   await brainRepo.saveFact(db, {
     id: 'fact-owner' as never, namespace: 'brain', createdAt: now, runId: 'run-owner' as never,
     claimKey: 'a'.repeat(40), subject: 'leave', attribute: 'duration', scope: { country: 'BE' }, status: 'LIKELY', confidence: 80,
-    reasons: [], needsVerification: true, impact: 'high',
+    reasons: [], needsVerification: true, referenceOnly: false, impact: 'high',
   });
   await db.query('INSERT INTO org.expertise (person_id, subject, country, weight) VALUES ($1,$2,$3,$4)', [owner.personId, 'leave', 'BE', 0.9]);
   await brainRepo.saveVerificationRequest(db, {

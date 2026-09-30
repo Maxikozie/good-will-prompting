@@ -91,7 +91,7 @@ before(async () => {
     intent: { subject: 'leave', scope: { country: 'BE' }, questionType: 'rule', slotTemplateId: 'leave', generatedSlots: false },
     status: 'completed', rulesVersion: '1', promptVersions: {}, modelIds: {}, evidenceSnapshotIds: [demo.evidence[0]!.snapshot.id], referenceSnapshotIds: [], startedAt: now });
   await brainRepo.saveFact(db, { id: binding.factId as never, namespace: 'brain', createdAt: now, runId: 'run-crypto' as never,
-    claimKey: 'c'.repeat(40), subject: 'leave', attribute: 'duration', scope: { country: 'BE' }, status: 'LIKELY', confidence: 80, reasons: [], needsVerification: true, impact: 'low' });
+    claimKey: 'c'.repeat(40), subject: 'leave', attribute: 'duration', scope: { country: 'BE' }, status: 'LIKELY', confidence: 80, reasons: [], needsVerification: true, referenceOnly: false, impact: 'low' });
   await db.query('INSERT INTO org.expertise (person_id, subject, country, weight) VALUES ($1,$2,$3,$4)', [owner.personId, 'leave', 'BE', 0.9]);
 });
 after(async () => db?.close());
