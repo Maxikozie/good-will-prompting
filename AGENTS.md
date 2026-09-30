@@ -4,6 +4,7 @@
 - Event: Tectonic Hackathon, Ghent, 30 Sept 2026. Doors 17:30, **submissions close 22:30**. That's ~5 hours of build time, so speed matters more than anything.
 - Track: **SD Worx** (HR / payroll company). Judges want a solution to a real SD Worx problem that they could actually use.
 - Challenge brief: <!-- PASTE THE SD WORX CHALLENGE HERE AS SOON AS IT'S REVEALED -->
+- Sponsor tools (**unconfirmed**, heard before the event): Google Cloud, ElevenLabs, Cursor, Aikido. Likely theme: customer service, possibly with voice. Verify once the brief is out.
 - Team (4): Maximilian, Isaac, Antonios, Casper. We work in parallel, each with our own AI agent (Claude Code / Codex), all on this repo at once.
 - Deliverable: a working demo + a short presentation video. No live pitch.
 
