@@ -115,3 +115,12 @@ No wiki connector exists. Today `WikiPage` in this repo means "vault page" for *
 - `.gitignore`: `vault-reference/`, `vault-brain/` (`vault-*/` already matches both)
 - `AGENTS.md`: Status + Structure lines when the Brain lands
 - Read-only reuse of: `getPage`, `getRaw`, `listPages`, `loadOrg`, `buildVerdict`, `flagForOwner`, `resolveTask`, `findExpert`, `now`, `tokens`, `sha256`, zod helpers in `schemas.ts`.
+
+## MCP security integration (2026-09-30)
+
+Use `createMcpServer(session, {db, operations})` and the guarded registrations in
+`src/mcp/brain-tools.ts` when connecting the pipeline. See
+[the MCP authentication contract](../security/MCP_AUTH.md). Any earlier example
+passing `principalId` as tool input is superseded: identity comes exclusively from
+the authenticated server session. Supply the complete business-service interface;
+the local executable currently registers only the six implemented legacy tools.

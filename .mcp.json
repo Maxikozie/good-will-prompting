@@ -2,7 +2,7 @@
   "mcpServers": {
     "trustlayer": {
       "command": "node",
-      "args": ["--import", "tsx", "src/mcp/server.ts"]
+      "args": ["--import", "tsx", "src/mcp/stdio.ts"]
     }
   }
 }

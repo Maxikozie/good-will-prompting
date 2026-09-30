@@ -38,7 +38,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 
 ## Run
 - `npm install && npm run dev` → dashboard + API on http://localhost:5173 (one process; builds `vault/` on first run)
-- `npm run mcp` → MCP server on stdio (Claude Code: `.mcp.json` is in the repo root)
+- `npm run mcp` → MCP server on authenticated local stdio (configure `.env` per `docs/security/MCP_AUTH.md`) (Claude Code: `.mcp.json` is in the repo root)
 - `npm run ingest` → rebuild the vault from `data/mock` (same as "Reset demo" in the dashboard)
 - `npm run typecheck`
 
@@ -54,6 +54,7 @@ Node 24 + TypeScript (run with tsx) · MCP: `@modelcontextprotocol/sdk` + zod ·
 - Casper:
 
 ## Status
+- [x] MCP session identity, central deny-by-default authorization and Brain IDOR registration guards; regression tests: `npm run test:security`
 - [x] Security threat model and source-review findings documented (no fixes applied; see `docs/security/`)
 - [x] Project scaffold running
 - [x] Core feature: trust verdict, health radar, flag → resolve loop, 6 MCP tools, API

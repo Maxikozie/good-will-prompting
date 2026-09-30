@@ -6,11 +6,12 @@
   "description": "TrustLayer: an MCP trust layer for SD Worx knowledge (Tectonic Hackathon Ghent)",
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/api/server.ts",
-    "mcp": "tsx src/mcp/server.ts",
+    "mcp": "tsx src/mcp/stdio.ts",
     "ingest": "tsx src/core/ingest-cli.ts",
     "build": "vite build web",
     "start": "vite build web && tsx src/api/server.ts --prod",
     "typecheck": "tsc --noEmit",
+    "test:security": "tsx --test test/security/*.test.ts",
     "brain:seed": "npm --prefix packages/brain run seed",
     "brain:record": "npm --prefix packages/brain run record --"
   },

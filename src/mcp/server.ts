@@ -1,9 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import {
   buildVerdict,
   ensureVault,
+  getTask,
+  loadOrg,
   findExpert,
   flagForOwner,
   knowledgeHealth,
@@ -17,16 +18,17 @@ import {
   countrySchema,
   inputSourceSchema,
   issueSchema,
-  personIdSchema,
   questionSchema,
   taskIdSchema,
   topicIdSchema,
 } from '../core/schemas';
 
-// TrustLayer MCP server (stdio). stdout is the MCP protocol channel: log to stderr only.
+import { authorize, Forbidden, type Action } from '../security/authorization';
+import type { StdioSession } from '../security/stdio-session';
+import { registerBrainTools, type BrainToolDependencies } from './brain-tools';
 
-ensureVault();
-
+// One server instance per authenticated transport session. No user identity in tool arguments.
+export function createMcpServer(session: StdioSession, brain?: BrainToolDependencies): McpServer {
 const server = new McpServer(
   { name: 'trustlayer', version: '0.1.0' },
   {
@@ -81,10 +83,16 @@ function ok(text: string): ToolResult {
   return { content: [{ type: 'text', text }] };
 }
 
-function guard(fn: () => ToolResult): ToolResult {
+function guard(action: Action, fn: () => ToolResult): ToolResult {
   try {
+    authorize(session.principal, action, { kind: 'service' });
+    // Legacy storage has no per-document ACL. Require access to the entire vault before any read;
+    // never use caller-selected country/client filters as authorization.
+    authorize(session.principal, action, { kind: 'legacy-vault', allowedPrincipals: session.legacyVaultReaders });
+    ensureVault();
     return fn();
   } catch (err) {
+    if (err instanceof Forbidden) return { content: [{ type: 'text', text: '403 Forbidden' }], isError: true };
     const msg = err instanceof TaskError || err instanceof z.ZodError ? err.message : 'Internal error';
     if (!(err instanceof TaskError)) console.error('[trustlayer-mcp]', err);
     return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };
@@ -100,14 +108,14 @@ server.registerTool(
       'Returns per-source trust scores with reasons (owner, freshness, country/client scope, authority, corroboration), ' +
       'detected conflicts, the recommended source, a one-line trusted answer, confidence and the owner to ask. ' +
       'Also adds in-scope knowledge the other assistant missed (e.g. Teams chats).',
-    inputSchema: {
+    inputSchema: z.object({
       question: questionSchema.describe('The question being answered'),
       sources: z.array(inputSourceSchema).max(20).describe('Sources returned by the existing assistant: {id?, hash?, title?, location?, snippet?}'),
       context: contextSchema.optional().describe('Optional scope; detected from the question when omitted'),
-    },
-    annotations: { readOnlyHint: true },
+    }).strict(),
+    annotations: { readOnlyHint: false },
   },
-  async ({ question, sources, context }) => guard(() => ok(verdictText(buildVerdict(question, context, { sources, askedBy: 'mcp' })))),
+  async ({ question, sources, context }) => guard('verify_sources', () => ok(verdictText(buildVerdict(question, context, { sources, askedBy: session.principal.id })))),
 );
 
 server.registerTool(
@@ -117,13 +125,13 @@ server.registerTool(
     description:
       'Search the TrustLayer knowledge vault directly and return the same verdict as verify_sources: which source to trust and why, ' +
       'conflicts, a one-line answer, confidence and the owner to ask. Use when you have no sources of your own.',
-    inputSchema: {
+    inputSchema: z.object({
       question: questionSchema.describe('The HR / payroll question, e.g. "Sunday overtime premium for Nordwind Retail in Belgium?"'),
       context: contextSchema.optional().describe('Optional scope; detected from the question when omitted'),
-    },
-    annotations: { readOnlyHint: true },
+    }).strict(),
+    annotations: { readOnlyHint: false },
   },
-  async ({ question, context }) => guard(() => ok(verdictText(buildVerdict(question, context, { askedBy: 'mcp' })))),
+  async ({ question, context }) => guard('trusted_answer', () => ok(verdictText(buildVerdict(question, context, { askedBy: session.principal.id })))),
 );
 
 server.registerTool(
@@ -133,13 +141,13 @@ server.registerTool(
     description:
       'The knowledge health radar: overall health score, per-team and per-country tiles, and lists of conflicts, orphaned (ownerless) pages, ' +
       'stale pages, unverified changes and knowledge gaps (questions nobody could answer with a trusted source). Use the returned ids with flag_for_owner.',
-    inputSchema: {
+    inputSchema: z.object({
       country: countrySchema.optional().describe('Only this country'),
       team: z.string().trim().max(100).optional().describe('Only pages owned by this team, e.g. "Payroll BE – Retail"'),
-    },
-    annotations: { readOnlyHint: true },
+    }).strict(),
+    annotations: { readOnlyHint: false },
   },
-  async ({ country, team }) => guard(() => ok(healthText(knowledgeHealth({ country, team })))),
+  async ({ country, team }) => guard('knowledge_health', () => ok(healthText(knowledgeHealth({ country, team })))),
 );
 
 server.registerTool(
@@ -149,16 +157,16 @@ server.registerTool(
     description:
       'Create a fix task for the accountable owner (or the team lead if the page is orphaned). topic = a topic id (from a verdict or knowledge_health, ' +
       'e.g. "sunday-overtime-premium") or a page id for page-level issues. Idempotent: returns the open task if one exists.',
-    inputSchema: {
+    inputSchema: z.object({
       topic: topicIdSchema.describe('Topic id or page id'),
       issue: issueSchema.describe('conflict | orphan | stale | gap | unverified | capture'),
       note: z.string().trim().min(1).max(1000).describe('Why this needs fixing, e.g. the customer question that hit the conflict'),
       context: contextSchema.optional().describe('Scope for topic-level tasks, e.g. {country: "BE", client: "Nordwind Retail"}'),
-    },
+    }).strict(),
   },
   async ({ topic, issue, note, context }) =>
-    guard(() => {
-      const { task, created } = flagForOwner({ topic, issue, note, context, created_by: 'mcp' });
+    guard('flag_for_owner', () => {
+      const { task, created } = flagForOwner({ topic, issue, note, context, created_by: session.principal.id });
       return ok(
         `${created ? 'Created' : 'Already open:'} task ${task.id} → ${task.assignee} (${task.assignee_reason})\n` +
           `Topic: ${task.topic_label} · issue: ${task.issue} · pages: ${task.page_ids.join(', ') || 'none'}\n` +
@@ -174,14 +182,22 @@ server.registerTool(
     description:
       'Owner resolves a fix task with the verified claim. The wiki page becomes "verified" (last_verified = now), losing sources are marked superseded, ' +
       'chat messages are captured into the page, and the next question gets the verified answer. Only the assignee or their team lead may resolve.',
-    inputSchema: {
+    inputSchema: z.object({
       task_id: taskIdSchema.describe('Task id from flag_for_owner / knowledge_health'),
       verified_claim: z.string().trim().min(5).max(1000).describe('The correct, owner-verified answer in one or two sentences'),
-      resolved_by: personIdSchema.describe('Person id of the owner resolving it, e.g. "lotte.peeters"'),
-    },
+    }).strict(),
   },
-  async ({ task_id, verified_claim, resolved_by }) =>
-    guard(() => {
+  async ({ task_id, verified_claim }) =>
+    guard('resolve', () => {
+      const org = loadOrg();
+      if (!org.person(session.principal.personId)?.active) throw new Forbidden();
+      const existing = getTask(task_id);
+      const assignee = existing ? org.person(existing.assignee) : null;
+      authorize(session.principal, 'resolve', existing ? {
+        kind: 'legacy-task', allowedPrincipals: session.legacyVaultReaders, assigneeId: existing.assignee,
+        leadId: org.teamLead(assignee?.team)?.id,
+      } : null);
+      const resolved_by = session.principal.personId;
       const { task, page, superseded } = resolveTask({ task_id, verified_claim, resolved_by });
       return ok(
         `Resolved ${task.id}. Page "${page.title}" (${page.id}) is now ${page.status}, verified ${page.last_verified} by ${resolved_by}.\n` +
@@ -195,14 +211,14 @@ server.registerTool(
   {
     title: 'Find expert',
     description: 'Who owns or last answered this topic (Connect): the accountable owner plus people with evidence (pages they own, answers in Teams/email).',
-    inputSchema: {
+    inputSchema: z.object({
       topic: z.string().trim().min(2).max(300).describe('Topic id or a free-text question'),
       context: contextSchema.optional(),
-    },
+    }).strict(),
     annotations: { readOnlyHint: true },
   },
   async ({ topic, context }) =>
-    guard(() => {
+    guard('find_expert', () => {
       const r = findExpert(topic, context);
       const lines = r.experts.map(
         (e) => `- ${e.person.name} <${e.person.email}>, ${e.person.role}, ${e.person.team}: ${e.reason}` + (e.evidence.length ? ` (evidence: ${e.evidence.map((x) => `"${x.title}"`).join(', ')})` : ''),
@@ -211,5 +227,6 @@ server.registerTool(
     }),
 );
 
-await server.connect(new StdioServerTransport());
-console.error('[trustlayer-mcp] ready on stdio');
+if (brain) registerBrainTools(server, session.principal, brain);
+return server;
+}

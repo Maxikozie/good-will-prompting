@@ -6,7 +6,7 @@ Source review on 2026-09-30, baseline **`ffdddc0`**, after pulling main and read
 
 Severity considers the actual exposure: localhost/mock fixtures today, with no assumed public deployment. **critical** means demonstrated broad catastrophic exposure; **high** means a reachable confidentiality/verification-authority failure; **medium** means a constrained integrity/privacy/availability failure or a concrete internal primitive that must be corrected before integration; **low** means limited-impact hardening. No critical issue was established. Internal Brain functions are not currently remotely callable; their defects are identified as such.
 
-All findings below are **open**. Each fix plan includes a regression test; none authorizes weakening existing checks. The table contains **18 findings: 2 high, 13 medium, 3 low**.
+The table records the **pre-fix baseline**. The subsequent [MCP authorization change](MCP_AUTH.md) addresses the MCP portion of F01, gates legacy MCP access for F02, corrects F07 tool annotations, and adds the Brain tool authorization boundary relevant to F14. HTTP exposure and repository-level findings remain open; this is not a claim that all findings are resolved. Each fix plan includes a regression test; none authorizes weakening existing checks. The table contains **18 findings: 2 high, 13 medium, 3 low**.
 
 ## Concrete findings
 

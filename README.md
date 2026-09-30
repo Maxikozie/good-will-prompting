@@ -23,10 +23,13 @@ npm run dev          # dashboard + API on http://localhost:5173 (builds the vaul
 - `npm run ingest`: rebuild the vault from `data/mock` (also: "Reset demo" in the dashboard footer)
 - `npm run mcp`: the MCP server over stdio (use `npm run --silent mcp` so npm doesn't write to stdout)
 
+### MCP identity setup
+Before running MCP, configure the local stdio session and vault ACL in `.env` using [MCP authentication](docs/security/MCP_AUTH.md). There is no default identity. `resolve` uses the authenticated session owner; it no longer accepts `resolved_by`.
+
 ### Use it from Claude
 Claude Code picks up [`.mcp.json`](.mcp.json) automatically when you open this folder (approve the `trustlayer` server). Or add it by hand from the repo root:
 ```bash
-claude mcp add trustlayer -- node --import tsx src/mcp/server.ts
+claude mcp add trustlayer -- node --import tsx src/mcp/stdio.ts
 ```
 Then ask: *"A customer asks what the Sunday overtime premium is for Nordwind Retail employees in Belgium. Our assistant returned sp-nordwind-be-overtime-2022, sp-cs-be-kb-overtime and sp-nordwind-nl-premiums. Which one should I trust?"*
 
@@ -39,7 +42,7 @@ The dashboard polls every 3 s, so tasks Claude creates or resolves through MCP s
 | `trusted_answer(question, context?)` | Same verdict, searching the vault directly |
 | `knowledge_health(country?, team?)` | The radar: health score, team/country tiles, conflicts, orphans, stale, unverified, gaps |
 | `flag_for_owner(topic, issue, note, context?)` | Fix task for the accountable owner (team lead if orphaned). Idempotent |
-| `resolve(task_id, verified_claim, resolved_by)` | Owner verifies: page → verified, losers → superseded, chat → captured |
+| `resolve(task_id, verified_claim)` | Owner verifies: page → verified, losers → superseded, chat → captured |
 | `find_expert(topic, context?)` | Who owns / last answered this (Connect) |
 
 ## Trust score (0–100, reasons first)
@@ -84,6 +87,6 @@ After Lotte resolves the task, the same question returns a verified answer (scor
 - No eval, no shell exec, no raw HTML rendering of source content.
 - API binds to 127.0.0.1, sets security headers, hides stack traces, caps JSON bodies at 64 kB.
 - Secrets only in `.env` (gitignored). No keys are needed to run the demo.
-- Auth is **MOCK** (labelled in code): the signed-in user is a demo selector. Resolve still enforces that only the assignee or their team lead can verify.
+- The dashboard HTTP API still uses **MOCK** identity (demo selector). MCP uses an explicit server-configured local stdio identity and central authorization; a tool cannot select its caller. Resolve still enforces that only the assignee or their team lead can verify.
 
 Everything external is mocked: SharePoint, Teams, Outlook, the HR directory and the existing assistant are fixtures in `data/mock/`. Production would use Microsoft Graph connectors.
