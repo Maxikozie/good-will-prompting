@@ -1,0 +1,12 @@
+subject: leave.small_leave.own_marriage
+label: "Klein verlet — eigen huwelijk"
+impact: high
+slots:
+  - { id: duration,         attribute: duration,         required: true,  weight: 1.0,  valueType: number, unit: days }
+  - { id: eligibility,      attribute: eligibility,      required: true,  weight: 1.0 }
+  - { id: timing_window,    attribute: timing_window,    required: true,  weight: 0.8 }
+  - { id: pay_continuation, attribute: pay_continuation, required: true,  weight: 0.8 }
+  - { id: proof_required,   attribute: proof_required,   required: false, weight: 0.5 }
+  - { id: legal_basis,      attribute: legal_basis,      required: false, weight: 0.5 }
+  - { id: effective_from,   attribute: effective_from,   required: false, weight: 0.25 }
+halfLifeDays: 365

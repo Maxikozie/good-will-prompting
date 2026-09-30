@@ -1,0 +1,23 @@
+# Postgres 16 + pgvector for the Brain (optional: without DATABASE_URL the Brain uses embedded PGlite).
+#   docker compose -f packages/brain/docker-compose.yml up -d
+#   DATABASE_URL=postgres://brain:brain@localhost:5433/brain npm run brain:seed
+# Local demo credentials only. Never reuse them anywhere else.
+services:
+  brain-db:
+    image: pgvector/pgvector:pg16
+    container_name: brain-db
+    environment:
+      POSTGRES_USER: brain
+      POSTGRES_PASSWORD: brain
+      POSTGRES_DB: brain
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - brain-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brain -d brain"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  brain-db-data:

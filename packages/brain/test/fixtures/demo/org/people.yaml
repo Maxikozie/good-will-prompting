@@ -1,0 +1,15 @@
+# FICTIONAL demo data. Principals are what the ACL filter matches against (evidence/reference allowed_principals).
+created_at: "2026-09-30T00:00:00.000Z"
+people:
+  - { id: sarah.peeters, name: Sarah Peeters, email: sarah.peeters@sdworx.example, team: "Payroll BE", country: BE, active: true,  principal_ids: ["user:sarah.peeters", "group:payroll-be", "group:all-staff"] }
+  - { id: tom.willems,   name: Tom Willems,   email: tom.willems@sdworx.example,   team: "Payroll BE", country: BE, active: true,  principal_ids: ["user:tom.willems", "group:payroll-be", "group:all-staff"] }
+  - { id: pieter.wouters, name: Pieter Wouters, email: pieter.wouters@sdworx.example, team: "Payroll BE", country: BE, active: false, principal_ids: [] }   # left SD Worx in 2023
+  - { id: eva.jacobs,    name: Eva Jacobs,    email: eva.jacobs@sdworx.example,    team: "Payroll BE", country: BE, active: true,  principal_ids: ["user:eva.jacobs", "group:payroll-be", "group:all-staff"] }
+  - { id: marc.claes,    name: Marc Claes,    email: marc.claes@sdworx.example,    team: "Payroll BE", country: BE, active: true,  principal_ids: ["user:marc.claes", "group:payroll-be", "group:customer-service-be", "group:all-staff"] }   # team lead
+  - { id: nina.maes,     name: Nina Maes,     email: nina.maes@sdworx.example,     team: "Customer Service BE", country: BE, active: true, principal_ids: ["user:nina.maes", "group:customer-service-be", "group:all-staff"] }   # asks the question
+  - { id: daan.visser,   name: Daan Visser,   email: daan.visser@sdworx.example,   team: "Payroll NL", country: NL, active: true,  principal_ids: ["user:daan.visser", "group:payroll-nl", "group:all-staff"] }   # no access to the BE-only documents
+expertise:
+  - { person: sarah.peeters, subject: leave.small_leave.own_marriage, country: BE, weight: 0.9 }
+  - { person: eva.jacobs,    subject: leave.small_leave.own_marriage, country: BE, weight: 0.7 }
+  - { person: tom.willems,   subject: leave.small_leave.own_marriage, country: BE, weight: 0.4 }   # below the 0.6 verifier threshold
+  - { person: daan.visser,   subject: leave.small_leave.own_marriage, country: NL, weight: 0.8 }
