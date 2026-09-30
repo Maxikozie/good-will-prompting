@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { IntakeInputSchema, SnapshotInputSchema } from './types';
 // Pipeline stages (SPEC §5). Each is `(ctx, input) → output`, zod-typed and logged to the CaseRun (brain.run_stage).
 export * from './context';
 export * from './stage';
@@ -31,8 +33,11 @@ export interface EvidencePhaseInput {
   runId?: RunId;
 }
 
+export const EvidencePhaseInputSchema = IntakeInputSchema.extend({ principals: z.array(z.string().min(1).max(200)).min(1).max(100).optional(), documents: SnapshotInputSchema.shape.documents }).strict();
+
 /** Stages 00 → 10 → 20 in one call. */
 export async function runEvidencePhase(ctx: PipelineCtx, input: EvidencePhaseInput) {
+  input = EvidencePhaseInputSchema.parse(input);
   const principals = input.principals ?? (await orgRepo.principalSetFor(ctx.db, input.principalId));
   const i = await intake(ctx, { question: input.question, principalId: input.principalId, scopeHint: input.scopeHint, runId: input.runId as RunId | undefined });
   const s = await snapshot(ctx, { runId: i.runId, principals, documents: input.documents });
@@ -52,6 +57,7 @@ export async function runThroughGaps(ctx: PipelineCtx, input: EvidencePhaseInput
 /** Stages 00 → 50: evidence, alignment, gaps, then gap-targeted enrichment from the wiki. */
 export async function runThroughEnrich(ctx: PipelineCtx, input: EvidencePhaseInput) {
   const through = await runThroughGaps(ctx, input);
+  input = EvidencePhaseInputSchema.parse(input);
   const principals = input.principals ?? (await orgRepo.principalSetFor(ctx.db, input.principalId));
   const e = await enrich(ctx, { runId: through.intake.runId, slotTemplate: through.intake.slotTemplate, principals });
   return { ...through, enrich: e };

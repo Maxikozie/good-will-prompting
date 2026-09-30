@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { parseJson } from '../security/input';
 import {
   WikiPageSchema,
   WikiSectionSchema,
@@ -159,5 +161,5 @@ export async function listLatestSections(db: Db, pageId: string): Promise<{ snap
 /** Embeddings of a snapshot's sections, by section id (for the circularity guard). */
 export async function getSectionEmbeddings(db: Db, snapshotId: string): Promise<Map<string, number[]>> {
   const r = await db.query<{ id: string; e: string }>('SELECT id, embedding::text AS e FROM reference.wiki_section WHERE snapshot_id = $1 AND embedding IS NOT NULL', [snapshotId]);
-  return new Map(r.rows.map((x) => [x.id, JSON.parse(x.e) as number[]]));
+  return new Map(r.rows.map((x) => [x.id, z.array(z.number().finite()).length(768).parse(parseJson(x.e))]));
 }

@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { z } from 'zod';
-import { parse } from 'yaml';
+import { readJson } from '../security/input';
+import { loadSlotTemplates } from '../rules/slots';
 import { loadDemo, type DemoData } from '../store/seed';
 import { normalizeValue, mergeScope, type PartialScope } from '../domain';
 import { inputHash } from './cache';
-import { fixtureFileName, type Fixture } from './fake';
+import { fixtureFileName, FixtureSchema, type Fixture } from './fake';
 import type { CompleteOpts, LLMProvider, Message } from './types';
 import type { ExtractedClaim } from './schemas';
 import { extractEvidenceTask, extractReferenceTask, intakeTask, relationTask, runTask, type KnownSubject } from './tasks';
@@ -16,17 +17,12 @@ export const DEMO_QUESTION = 'Hoeveel dagen klein verlet krijg ik voor mijn eige
 export const SLOTS_DIR = path.resolve(import.meta.dirname, '..', '..', 'slots');
 
 export function loadSubjects(dir = SLOTS_DIR): KnownSubject[] {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.yaml'))
-    .sort()
-    .map((f) => parse(fs.readFileSync(path.join(dir, f), 'utf8')) as { subject: string; label: string })
-    .map((y) => ({ subject: y.subject, label: y.label }));
+  return loadSlotTemplates(dir).map(({ subject, label }) => ({ subject, label }));
 }
 
 /** Wraps a real provider: answers are written as fixtures, and an existing fixture is reused instead of calling the model again. */
 export class RecordingProvider implements LLMProvider {
+  get budgetsManaged() { return this.inner.budgetsManaged; }
   readonly modelId: string;
   written = 0;
   reused = 0;
@@ -43,7 +39,7 @@ export class RecordingProvider implements LLMProvider {
     const hash = inputHash(messages);
     const file = path.join(this.outDir, fixtureFileName(opts.promptId, hash));
     if (!this.force && fs.existsSync(file)) {
-      const existing = JSON.parse(fs.readFileSync(file, 'utf8')) as Fixture;
+      const existing = readJson(file, FixtureSchema);
       const ok = schema.safeParse(existing.response);
       if (ok.success && !opts.check?.(ok.data)) {
         this.reused++;

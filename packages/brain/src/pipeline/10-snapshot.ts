@@ -1,3 +1,4 @@
+import { embedWithLimits } from '../security/model';
 import { createHash } from 'node:crypto';
 import {
   EdgeIdSchema,
@@ -92,7 +93,7 @@ export const snapshot = defineStage({
       const missing = new Set(await evidenceRepo.listPassageIdsWithoutEmbedding(ctx.db, snap.id));
       if (missing.size) {
         const todo = passages.filter((p) => missing.has(p.id));
-        const vectors = await ctx.embedder.embed(todo.map((p) => p.text));
+        const vectors = await embedWithLimits(ctx.embedder, todo.map((p) => p.text));
         for (let i = 0; i < todo.length; i++) await evidenceRepo.setPassageEmbedding(ctx.db, todo[i]!.id, vectors[i]!);
         embedded += todo.length;
       }

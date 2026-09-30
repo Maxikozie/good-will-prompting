@@ -14,7 +14,7 @@ export const PersonSchema = z.object({
   country: z.string().max(100),
   active: z.boolean(),
   principalIds: z.array(PrincipalIdSchema),
-});
+}).strict();
 export type Person = z.infer<typeof PersonSchema>;
 
 /** Derived (SPEC §11), recomputed on demand; a value object, not a stored node, so it has no id. */
@@ -23,7 +23,7 @@ export const ExpertiseSchema = z.object({
   subject: z.string().min(1).max(200), // subject or domain
   country: z.string().max(100),
   weight: z.number().min(0).max(1),
-});
+}).strict();
 export type Expertise = z.infer<typeof ExpertiseSchema>;
 
 export const OrgEventSchema = z.object({
@@ -34,5 +34,5 @@ export const OrgEventSchema = z.object({
   scope: PartialScopeSchema,
   domain: z.string().max(200),
   effectiveAt: IsoStringSchema,
-});
+}).strict();
 export type OrgEvent = z.infer<typeof OrgEventSchema>;

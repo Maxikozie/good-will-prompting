@@ -1,3 +1,4 @@
+import { parseEnv } from '../security/env';
 import path from 'node:path';
 import { AnthropicProvider } from './anthropic';
 import type { LLMCache } from './cache';
@@ -14,14 +15,15 @@ export const DEFAULT_FIXTURE_DIR = path.resolve(import.meta.dirname, '..', '..',
 
 /** BRAIN_LLM_PROVIDER = ollama (default) | anthropic | fake. `anthropic` only exists when ANTHROPIC_API_KEY is set. */
 export function createProvider(env: NodeJS.ProcessEnv = process.env, cache?: LLMCache): LLMProvider {
-  const kind = (env.BRAIN_LLM_PROVIDER || 'ollama') as ProviderKind;
+  const config = parseEnv(env);
+  const kind = config.BRAIN_LLM_PROVIDER ?? 'ollama';
   switch (kind) {
     case 'ollama':
-      return new OllamaProvider({ cache });
+      return new OllamaProvider({ cache, host: config.OLLAMA_HOST, model: config.OLLAMA_MODEL, timeoutMs: config.BRAIN_LLM_TIMEOUT_MS });
     case 'anthropic':
-      return new AnthropicProvider({ cache });
+      return new AnthropicProvider({ cache, apiKey: config.ANTHROPIC_API_KEY, model: config.ANTHROPIC_MODEL, timeoutMs: config.BRAIN_LLM_TIMEOUT_MS });
     case 'fake':
-      return FakeProvider.fromDir(env.BRAIN_LLM_FIXTURES || DEFAULT_FIXTURE_DIR);
+      return FakeProvider.fromDir(config.BRAIN_LLM_FIXTURES || DEFAULT_FIXTURE_DIR);
     default:
       throw new LLMError(`Unknown BRAIN_LLM_PROVIDER "${String(kind)}" (use ollama, anthropic or fake)`);
   }
@@ -29,8 +31,9 @@ export function createProvider(env: NodeJS.ProcessEnv = process.env, cache?: LLM
 
 /** BRAIN_EMBEDDER = ollama (default) | fake. */
 export function createEmbedder(env: NodeJS.ProcessEnv = process.env): Embedder {
-  const kind = env.BRAIN_EMBEDDER || (env.BRAIN_LLM_PROVIDER === 'fake' ? 'fake' : 'ollama');
+  const config = parseEnv(env);
+  const kind = config.BRAIN_EMBEDDER ?? (config.BRAIN_LLM_PROVIDER === 'fake' ? 'fake' : 'ollama');
   if (kind === 'fake') return new FakeEmbedder();
-  if (kind === 'ollama') return new OllamaEmbedder();
+  if (kind === 'ollama') return new OllamaEmbedder({ host: config.OLLAMA_HOST, model: config.OLLAMA_EMBED_MODEL, timeoutMs: config.BRAIN_LLM_TIMEOUT_MS });
   throw new LLMError(`Unknown BRAIN_EMBEDDER "${kind}" (use ollama or fake)`);
 }

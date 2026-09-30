@@ -14,7 +14,7 @@ afterAll(async () => db.close());
 
 describe('migrations', () => {
   it('apply once and are idempotent', async () => {
-    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql', '005_verification_token_use.sql']);
+    expect(await migrate(db)).toEqual(['001_init.sql', '002_llm_cache.sql', '003_run_stage.sql', '004_reference_only.sql', '005_verification_token_use.sql', '006_resource_usage.sql']);
     expect(await migrate(db)).toEqual([]);
   });
 

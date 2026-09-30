@@ -12,15 +12,15 @@ import {
 } from './ids';
 import { PartialScopeSchema } from './scope';
 
-export const SpanSchema = z.object({ start: z.number().int().min(0), end: z.number().int().min(0) }).refine((s) => s.end >= s.start, 'span end < start');
+export const SpanSchema = z.object({ start: z.number().int().min(0), end: z.number().int().min(0) }).strict().refine((s) => s.end >= s.start, 'span end < start');
 export type Span = z.infer<typeof SpanSchema>;
 
 export const ClaimValueSchema = z.object({
   type: ValueTypeSchema,
   raw: z.string().max(500),
-  normalized: z.unknown(), // number | string | boolean | {min,max} | ISO date; produced by domain/normalize.ts, never by an LLM
+  normalized: z.union([z.number().finite(), z.string().max(500), z.boolean(), z.object({ min: z.number().finite(), max: z.number().finite() }).strict()]), // number | string | boolean | {min,max} | ISO date; produced by domain/normalize.ts, never by an LLM
   unit: UnitSchema.optional(),
-});
+}).strict();
 export type ClaimValue = z.infer<typeof ClaimValueSchema>;
 
 export const QualifiersSchema = PartialScopeSchema.extend({ conditions: z.array(z.string().max(300)).max(20) });
@@ -30,7 +30,7 @@ export const TemporalSchema = z.object({
   effectiveFrom: IsoStringSchema.optional(),
   effectiveTo: IsoStringSchema.optional(),
   statedAsOf: IsoStringSchema.optional(),
-});
+}).strict();
 export type Temporal = z.infer<typeof TemporalSchema>;
 
 // Shape shared by EvidenceClaim and ReferenceFact (SPEC §3). The per-origin objects only differ in branded ids.
@@ -57,7 +57,7 @@ export const EvidenceClaimSchema = z.object({
   snapshotId: EvidenceSnapshotIdSchema,
   passageId: EvidencePassageIdSchema,
   ...claimCommon,
-});
+}).strict();
 export type EvidenceClaim = z.infer<typeof EvidenceClaimSchema>;
 
 export const ReferenceFactSchema = z.object({
@@ -68,7 +68,7 @@ export const ReferenceFactSchema = z.object({
   snapshotId: WikiSnapshotIdSchema,
   passageId: WikiSectionIdSchema, // the wiki equivalent of a passage is a section
   ...claimCommon,
-});
+}).strict();
 export type ReferenceFact = z.infer<typeof ReferenceFactSchema>;
 
 /** Discriminated by `origin`. */

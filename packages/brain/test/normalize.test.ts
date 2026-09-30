@@ -170,10 +170,16 @@ describe('enum and text fallbacks', () => {
   ]);
 });
 
-it('is deterministic and never throws on odd input', () => {
-  for (const s of ['€', '%', '-', ' - ', '2-', '-2', '1,2,3,4', '1..2', 'a'.repeat(2000), '\u0000', 'NaN', 'Infinity']) {
+it('is deterministic on bounded odd input', () => {
+  for (const s of ['€', '%', '-', ' - ', '2-', '-2', '1,2,3,4', '1..2', '\u0000', 'NaN', 'Infinity']) {
     const a = normalizeValue(s);
     expect(normalizeValue(s)).toEqual(a);
     expect(a.raw.length).toBeLessThanOrEqual(500);
   }
+});
+
+
+it('rejects oversized values before normalization and treats prototype names as text', () => {
+  expect(() => normalizeValue('a'.repeat(2000))).toThrow('Input too large');
+  for (const raw of ['constructor', 'toString', '__proto__', '1 constructor']) expect(normalizeValue(raw).type).toBe('text');
 });

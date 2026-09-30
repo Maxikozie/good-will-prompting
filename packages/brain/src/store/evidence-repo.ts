@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { parseJson } from '../security/input';
 import {
   EvidenceDocumentSchema,
   EvidencePassageSchema,
@@ -137,7 +139,7 @@ export async function listPassageIdsWithoutEmbedding(db: Db, snapshotId: string)
 /** Embeddings of a snapshot's passages, by passage id (for duplicate detection). */
 export async function getPassageEmbeddings(db: Db, snapshotId: string): Promise<Map<string, number[]>> {
   const r = await db.query<{ id: string; e: string }>('SELECT id, embedding::text AS e FROM evidence.passage WHERE snapshot_id = $1 AND embedding IS NOT NULL', [snapshotId]);
-  return new Map(r.rows.map((x) => [x.id, JSON.parse(x.e) as number[]]));
+  return new Map(r.rows.map((x) => [x.id, z.array(z.number().finite()).length(768).parse(parseJson(x.e))]));
 }
 
 /** Highest snapshot version of a document (0 if none). */

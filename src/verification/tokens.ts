@@ -1,3 +1,5 @@
+import { parseEnv } from '../../packages/brain/src/security/env';
+import { parseJson } from '../../packages/brain/src/security/input';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { jwtVerify, SignJWT, type JWTPayload } from 'jose';
 import { z } from 'zod';
@@ -14,7 +16,7 @@ export interface VerifiedToken extends TokenBinding { jti: string; expiresAt: nu
 const registered = z.object({
   iss: z.string().min(1), aud: z.string().min(1), jti: z.string().min(8).max(100),
   iat: z.number().int().nonnegative(), nbf: z.number().int().nonnegative(), exp: z.number().int().nonnegative(),
-});
+}).strict();
 
 /** Fixed HS256, local key allowlist only. JOSE uses WebCrypto signature verification,
  * not a JavaScript secret/signature comparison. No URL/JWK from a token is trusted. */
@@ -26,7 +28,8 @@ export class EnvJwt {
   readonly #type: string;
   constructor(env: NodeJS.ProcessEnv, prefix: string, type: string) {
     try {
-      const keys = z.record(z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), z.string()).parse(JSON.parse(env[`${prefix}_KEYS`] ?? ''));
+      parseEnv(env);
+      const keys = z.record(z.string().regex(/^[A-Za-z0-9_-]{1,64}$/), z.string()).parse(parseJson(env[`${prefix}_KEYS`] ?? ''));
       this.#keys = new Map(Object.entries(keys).map(([kid, encoded]) => {
         const key = Buffer.from(encoded, 'base64');
         const canonical = Buffer.from(key.toString('base64'));
@@ -60,7 +63,7 @@ export class EnvJwt {
         return key;
       }, { algorithms: ['HS256'], issuer: this.#issuer, audience: this.#audience, typ: this.#type,
         requiredClaims: ['iss', 'aud', 'exp', 'nbf', 'iat', 'jti'], maxTokenAge: MAX_LIFETIME_SECONDS, clockTolerance: 0 });
-      const p = registered.parse(payload);
+      const p = registered.parse(Object.fromEntries(Object.keys(registered.shape).map((k) => [k, payload[k]])));
       if (protectedHeader.alg !== 'HS256' || p.exp <= p.iat || p.exp - p.iat > MAX_LIFETIME_SECONDS || p.nbf < p.iat || p.nbf >= p.exp) throw new Error();
       return payload;
     } catch { throw new Forbidden(); }

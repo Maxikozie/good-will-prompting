@@ -1,8 +1,11 @@
+import { boundText } from '../security/input';
+import { LIMITS } from '../security/limits';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import {
   EvidenceDocumentSchema,
   PartialScopeSchema,
+  IsoStringSchema,
   SourceSystemSchema,
   TierSchema,
   evidenceDocId,
@@ -21,10 +24,10 @@ export const DocMetadataSchema = z
     sourceSystem: SourceSystemSchema.optional(),
     owner: z.string().min(1).max(200).optional(),
     author: z.string().min(1).max(200).optional(),
-    lastEditedAt: z.string().max(40).optional(),
-    lastVerifiedAt: z.string().max(40).optional(),
+    lastEditedAt: IsoStringSchema.optional(),
+    lastVerifiedAt: IsoStringSchema.optional(),
     verifiedTier: TierSchema.optional(),
-    validUntil: z.string().max(40).optional(),
+    validUntil: IsoStringSchema.optional(),
     declaredScope: PartialScopeSchema.optional(),
     allowedPrincipals: z.array(z.string().min(1).max(200)).max(50).optional(),
   })
@@ -35,7 +38,7 @@ export const AgentDocumentSchema = z
   .object({
     id: z.string().trim().min(1).max(200).optional(),
     uri: z.string().trim().min(1).max(1000).optional(),
-    text: z.string().max(200_000).optional(),
+    text: z.string().max(LIMITS.documentChars).optional(),
     metadata: DocMetadataSchema.optional(),
   })
   .strict()
@@ -73,11 +76,12 @@ function overlay(base: EvidenceDocument, m: NonNullable<AgentDocument['metadata'
  * the payload with conservative defaults (readable by the caller only). Returns null if there is nothing to read.
  */
 export async function resolveDocument(db: Db, payload: AgentDocument, ctx: { callerPrincipal: string; now: string }): Promise<ResolvedDocument | null> {
+  payload = AgentDocumentSchema.parse(payload);
   const known = (payload.id ? await repo.getDocument(db, payload.id) : null) ?? (payload.uri ? await repo.getDocumentByUri(db, payload.uri) : null);
   if (known) {
     const document = payload.metadata ? overlay(known, payload.metadata) : known;
     const text = payload.text ?? (await repo.latestSnapshot(db, known.id))?.text;
-    return text === undefined ? null : { document, text };
+    return text === undefined ? null : { document, text: boundText(text) };
   }
   if (payload.text === undefined) return null;
   const m = payload.metadata ?? {};

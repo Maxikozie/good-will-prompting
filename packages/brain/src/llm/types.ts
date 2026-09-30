@@ -19,12 +19,14 @@ export interface CompleteOpts<T = unknown> {
  * Always temperature 0, output validated by a zod schema, 2 retries with the validation error fed back, cached by content hash.
  */
 export interface LLMProvider {
+  readonly budgetsManaged?: true;
   /** Model id recorded in CaseRun.modelIds and used in the cache key. */
   readonly modelId: string;
   completeJSON<T>(schema: z.ZodType<T>, messages: readonly Message[], opts: CompleteOpts<T>): Promise<T>;
 }
 
 export interface Embedder {
+  readonly budgetsManaged?: true;
   readonly modelId: string;
   readonly dimensions: number;
   /** One vector per input text, same order. */

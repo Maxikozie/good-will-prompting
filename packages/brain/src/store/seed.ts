@@ -2,7 +2,9 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parse } from 'yaml';
+import { z } from 'zod';
+import { readYaml, readText, parseYaml, boundText } from '../security/input';
+import { EvidenceSeedSchema, ReferenceSeedSchema, OrgSeedSchema } from './seed-schemas';
 import {
   evidenceDocId,
   evidencePassageId,
@@ -35,10 +37,11 @@ import * as referenceRepo from './reference-repo';
 export const DEMO_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'test', 'fixtures', 'demo');
 export const SEED_NOW = '2026-09-30T00:00:00.000Z'; // demo "today"
 
-function frontmatter(src: string): { data: Record<string, any>; body: string } { // eslint-disable-line @typescript-eslint/no-explicit-any
+function frontmatter<S extends z.ZodType>(src: string, schema: S): { data: z.infer<S>; body: string } {
+  boundText(src);
   const m = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) throw new Error('fixture without frontmatter');
-  return { data: (parse(m[1]!) ?? {}) as Record<string, any>, body: m[2]! }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  return { data: schema.parse(parseYaml(m[1]!)), body: m[2]! };
 }
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -52,18 +55,18 @@ export interface DemoData {
 }
 
 export function loadDemo(dir = DEMO_DIR): DemoData {
-  const orgFile = parse(fs.readFileSync(path.join(dir, 'org', 'people.yaml'), 'utf8')) as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const orgFile = readYaml(path.join(dir, 'org', 'people.yaml'), OrgSeedSchema);
   const createdAt: string = orgFile.created_at ?? SEED_NOW;
 
-  const people: Person[] = orgFile.people.map((p: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+  const people: Person[] = orgFile.people.map((p) => ({
     id: personId(p.id), namespace: 'org', createdAt, name: p.name, email: p.email, team: p.team, country: p.country, active: p.active, principalIds: (p.principal_ids ?? []).map(principalId),
   }));
-  const expertise: Expertise[] = orgFile.expertise.map((e: any) => ({ personId: personId(e.person), subject: e.subject, country: e.country, weight: e.weight })); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const expertise: Expertise[] = orgFile.expertise.map((e) => ({ personId: personId(e.person), subject: e.subject, country: e.country, weight: e.weight }));
 
   const list = (sub: string) => fs.readdirSync(path.join(dir, sub)).filter((f) => f.endsWith('.md')).sort();
 
   const evidence = list('evidence').map((f) => {
-    const { data, body } = frontmatter(fs.readFileSync(path.join(dir, 'evidence', f), 'utf8'));
+    const { data, body } = frontmatter(readText(path.join(dir, 'evidence', f)), EvidenceSeedSchema);
     const hash = sha256(body);
     const docId = evidenceDocId(data.id);
     const snapId = evidenceSnapshotId(`snap-${data.id}-${hash.slice(0, 12)}`);
@@ -82,7 +85,7 @@ export function loadDemo(dir = DEMO_DIR): DemoData {
   });
 
   const reference = list('reference').map((f) => {
-    const { data, body } = frontmatter(fs.readFileSync(path.join(dir, 'reference', f), 'utf8'));
+    const { data, body } = frontmatter(readText(path.join(dir, 'reference', f)), ReferenceSeedSchema);
     const hash = sha256(body);
     const pageId = wikiPageId(data.id);
     const snapId = wikiSnapshotId(`wsnap-${data.id}-${hash.slice(0, 12)}`);

@@ -1,3 +1,4 @@
+import { ClaimValueSchema, PartialScopeSchema } from '../../packages/brain/src/domain';
 import { z } from 'zod';
 import type { Db } from '../../packages/brain/src/store/db';
 import { authorize, Forbidden, type Principal } from '../security/authorization';
@@ -6,7 +7,12 @@ import { actionSchema, VerificationTokens, type VerifiedToken } from './tokens';
 
 export const submissionSchema = z.object({
   token: z.string().min(1).max(8192), action: actionSchema,
-  payload: z.record(z.string(), z.unknown()).optional(),
+  payload: z.union([
+    z.object({ note: z.string().max(1000).optional(), reason: z.string().max(1000).optional() }).strict(),
+    z.object({ value: ClaimValueSchema, quote: z.string().max(300).optional(), sourceUri: z.string().max(1000).optional() }).strict(),
+    z.object({ scope: PartialScopeSchema }).strict(),
+    z.object({ personId: z.string().min(1).max(200) }).strict(),
+  ]).optional(),
 }).strict();
 export type Submission = z.infer<typeof submissionSchema>;
 export type ApplyVerification = (tx: Db, input: Submission, principal: Principal, token: VerifiedToken) => Promise<unknown>;

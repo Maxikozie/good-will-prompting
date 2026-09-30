@@ -1,3 +1,4 @@
+import { parseEnv } from '../security/env';
 import type { Db } from '../store/db';
 import type { Embedder, LLMProvider } from '../llm';
 import type { SlotTemplate } from '../domain';
@@ -18,7 +19,7 @@ export interface PipelineCtx {
 }
 
 export function defaultNow(): Date {
-  const pinned = process.env.TRUSTLAYER_NOW;
+  const pinned = parseEnv().TRUSTLAYER_NOW;
   if (pinned) {
     const d = new Date(pinned);
     if (!Number.isNaN(d.getTime())) return d;

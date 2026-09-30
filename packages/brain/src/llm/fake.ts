@@ -1,6 +1,9 @@
+import { readJson } from '../security/input';
+import { MessagesSchema } from '../security/model';
+import { reserveModelCall } from '../security/budget';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { inputHash } from './cache';
 import { LLMError, MissingFixtureError } from './errors';
 import { describeIssues } from './json';
@@ -17,6 +20,8 @@ export interface Fixture {
   response: unknown;
 }
 
+export const FixtureSchema = z.object({ promptId: z.string().max(100), promptVersion: z.string().max(100), inputHash: z.string().length(64), model: z.string().max(200), messages: MessagesSchema, response: z.unknown() }).strict();
+
 export const fixtureFileName = (promptId: string, hash: string) => path.join(promptId, `${hash.slice(0, 16)}.json`);
 
 /**
@@ -25,6 +30,7 @@ export const fixtureFileName = (promptId: string, hash: string) => path.join(pro
  * no longer satisfies the schema throws too: stale fixtures are loud, not silent.
  */
 export class FakeProvider implements LLMProvider {
+  readonly budgetsManaged = true as const;
   readonly modelId = 'fake';
   private readonly byKey = new Map<string, Fixture>();
   /** Every call made, in order (assert on it in tests). */
@@ -40,7 +46,7 @@ export class FakeProvider implements LLMProvider {
       for (const sub of fs.readdirSync(dir, { withFileTypes: true })) {
         if (!sub.isDirectory()) continue;
         for (const f of fs.readdirSync(path.join(dir, sub.name)).filter((x) => x.endsWith('.json')).sort()) {
-          fixtures.push(JSON.parse(fs.readFileSync(path.join(dir, sub.name, f), 'utf8')) as Fixture);
+          fixtures.push(readJson(path.join(dir, sub.name, f), FixtureSchema));
         }
       }
     }
@@ -65,6 +71,8 @@ export class FakeProvider implements LLMProvider {
   }
 
   async completeJSON<T>(schema: z.ZodType<T>, messages: readonly Message[], opts: CompleteOpts<T>): Promise<T> {
+    MessagesSchema.parse(messages);
+    await reserveModelCall(messages.map((m) => m.content));
     const hash = inputHash(messages);
     this.calls.push({ promptId: opts.promptId, inputHash: hash });
     const f = this.byKey.get(FakeProvider.key(opts.promptId, hash));

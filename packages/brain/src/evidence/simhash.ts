@@ -1,3 +1,4 @@
+import { boundText } from '../security/input';
 const MASK = (1n << 64n) - 1n;
 const FNV_OFFSET = 0xcbf29ce484222325n;
 const FNV_PRIME = 0x100000001b3n;
@@ -12,7 +13,7 @@ function fnv64(s: string): bigint {
 }
 
 export const tokens = (s: string): string[] =>
-  s
+  boundText(s)
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()

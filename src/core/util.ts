@@ -1,3 +1,6 @@
+import { LIMITS } from '../../packages/brain/src/security/limits';
+import { boundText } from '../../packages/brain/src/security/input';
+import { parseEnv } from '../../packages/brain/src/security/env';
 import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,9 +13,10 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const ENV_FILE = path.join(ROOT, '.env');
 if (fs.existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 for (const k of ['PORT', 'HOST', 'TRUSTLAYER_NOW', 'TRUSTLAYER_VAULT_DIR']) if (process.env[k] === '') delete process.env[k];
+export const ENV = parseEnv();
 export const MOCK_DIR = path.join(ROOT, 'data', 'mock');
 // Operator-set only (env), never from a request. Lets you run a scratch vault for rehearsals.
-export const VAULT_DIR = process.env.TRUSTLAYER_VAULT_DIR ? path.resolve(process.env.TRUSTLAYER_VAULT_DIR) : path.join(ROOT, 'vault');
+export const VAULT_DIR = ENV.TRUSTLAYER_VAULT_DIR ? path.resolve(ENV.TRUSTLAYER_VAULT_DIR) : path.join(ROOT, 'vault');
 export const RAW_DIR = path.join(VAULT_DIR, 'raw');
 export const WIKI_DIR = path.join(VAULT_DIR, 'wiki');
 export const META_DIR = path.join(VAULT_DIR, '.meta');
@@ -29,7 +33,7 @@ const DAY = 86_400_000;
 
 /** Current time. TRUSTLAYER_NOW (ISO date) pins it for replaying the demo on another day. */
 export function now(): Date {
-  const pinned = process.env.TRUSTLAYER_NOW;
+  const pinned = parseEnv().TRUSTLAYER_NOW;
   if (pinned) {
     const d = new Date(pinned);
     if (!Number.isNaN(d.getTime())) return d;
@@ -96,6 +100,7 @@ export const COUNTRY_NAMES: Record<string, string> = { BE: 'Belgium', NL: 'the N
 
 /** Pull a comparable value out of a free-text claim: "120%", "€8.00", or a short normalised phrase. */
 export function extractValue(text: string): string {
+  boundText(text, LIMITS.claimChars);
   const pct = text.match(/(\d+(?:[.,]\d+)?)\s?%/);
   if (pct) return `${pct[1].replace(',', '.')}%`;
   const eur = text.match(/€\s?(\d+(?:[.,]\d{1,2})?)/);

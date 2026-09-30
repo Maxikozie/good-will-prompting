@@ -240,3 +240,24 @@ test('verification rejects a spent token, wrong action and invalid token with th
     assert.deepEqual(await invoke(owner, 'brain_submit_verification', input, true), forbidden);
   }
 });
+
+test('MCP rate limit persists across connections and remains separate per tool', async () => {
+  const { LIMITS } = await import('../../packages/brain/src/security/limits');
+  const principal = { ...legacy, id: 'user:rate-test' };
+  const c = await clientFor(principal);
+  try {
+    for (let i = 0; i < LIMITS.toolBurst; i++) {
+      assert.notEqual((await c.client.callTool({ name: 'find_expert', arguments: { topic: 'leave' } })).isError, true);
+    }
+    assert.match(text(await c.client.callTool({ name: 'find_expert', arguments: { topic: 'leave' } })), /429 Rate limit exceeded/);
+    assert.notEqual((await c.client.callTool({ name: 'knowledge_health', arguments: {} })).isError, true);
+  } finally { await c.close(); }
+  assert.match(text(await invoke(principal, 'find_expert', { topic: 'leave' })), /429 Rate limit exceeded/);
+});
+
+test('MCP rejects oversized questions and unknown nested context fields', async () => {
+  for (const args of [{ question: 'x'.repeat(501) }, { question: 'leave', context: { country: 'BE', admin: true } }]) {
+    const result = await invoke(legacy, 'trusted_answer', args);
+    assert.equal(result.isError, true);
+  }
+});

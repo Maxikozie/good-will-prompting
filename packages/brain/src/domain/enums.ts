@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** ISO-8601 date or timestamp, e.g. "2026-09-25" or "2026-09-25T10:42:00Z". */
-export const IsoStringSchema = z.string().refine((s) => !Number.isNaN(Date.parse(s)), 'not a valid ISO date');
+export const IsoStringSchema = z.string().max(40).refine((s) => !Number.isNaN(Date.parse(s)), 'not a valid ISO date');
 export type IsoString = z.infer<typeof IsoStringSchema>;
 
 export const NamespaceSchema = z.enum(['evidence', 'reference', 'brain', 'org']);

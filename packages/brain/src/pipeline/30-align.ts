@@ -1,3 +1,4 @@
+import { embedWithLimits } from '../security/model';
 import { createHash } from 'node:crypto';
 import { EdgeIdSchema, FactIdSchema, FactSchema, RunIdSchema, evidenceClaimId, type Edge, type Fact, type ReasonCode } from '../domain';
 import { alignClaims, type Relation } from '../evidence';
@@ -56,7 +57,7 @@ export const align = defineStage({
       claims,
       subject: run.intent.subject,
       query,
-      embed: (texts) => ctx.embedder.embed(texts),
+      embed: (texts) => embedWithLimits(ctx.embedder, texts),
       classify: (a, b) =>
         runTask(
           ctx.llm,

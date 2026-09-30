@@ -1,3 +1,5 @@
+import { ClaimsFileSchema, SharePointSchema, TeamsSchema, EmailSchema, QueriesSeedSchema } from './input-schemas';
+import { readJson, readText, parseJson, boundText } from '../../packages/brain/src/security/input';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Claim, Country, Origin, QueryLogEntry, SourceType, WikiPage } from './types';
@@ -15,31 +17,6 @@ const ORIGIN_LABEL: Record<Origin, string> = {
   internal: 'TrustLayer wiki',
 };
 
-interface TeamsExport {
-  id: string;
-  title: string;
-  team: string;
-  channel: string;
-  url: string;
-  country: Country | null;
-  client: string | null;
-  product: string | null;
-  messages: { id: string; from: string; createdDateTime: string; body: string }[];
-}
-
-interface EmailExport {
-  id: string;
-  subject: string;
-  from: string;
-  to: string[];
-  sentDateTime: string;
-  url: string;
-  country: Country | null;
-  client: string | null;
-  product: string | null;
-  body: string;
-}
-
 function files(dir: string, ext: string): string[] {
   const full = path.join(MOCK_DIR, dir);
   if (!fs.existsSync(full)) return [];
@@ -52,7 +29,7 @@ function files(dir: string, ext: string): string[] {
 
 function loadClaims(): Record<string, Claim[]> {
   const f = path.join(MOCK_DIR, 'claims-cache.json');
-  return (JSON.parse(fs.readFileSync(f, 'utf8')) as { claims: Record<string, Claim[]> }).claims;
+  return readJson(f, ClaimsFileSchema).claims;
 }
 
 function date(iso: string | null | undefined): string {
@@ -86,9 +63,10 @@ export function renderBody(page: Omit<WikiPage, 'body'>, content: string): strin
 }
 
 function ingestSharePoint(file: string, claims: Record<string, Claim[]>, ingestedAt: string): WikiPage {
-  const raw = fs.readFileSync(file, 'utf8');
+  const raw = boundText(readText(file));
   const hash = sha256(raw);
-  const { data, body } = splitFrontmatter(raw);
+  const { data: metadata, body } = splitFrontmatter(raw);
+  const data = SharePointSchema.parse(metadata);
   const id = String(data.id);
   putRaw(hash, raw, { source_id: id, origin: 'sharepoint', original: path.relative(MOCK_DIR, file).replace(/\\/g, '/'), ingested_at: ingestedAt, ext: 'md' });
   const c = claims[id] ?? [];
@@ -120,9 +98,9 @@ function ingestSharePoint(file: string, claims: Record<string, Claim[]>, ingeste
 
 function ingestTeams(file: string, claims: Record<string, Claim[]>, ingestedAt: string): WikiPage {
   const org = loadOrg();
-  const raw = fs.readFileSync(file, 'utf8');
+  const raw = boundText(readText(file));
   const hash = sha256(raw);
-  const t = JSON.parse(raw) as TeamsExport;
+  const t = TeamsSchema.parse(parseJson(raw));
   putRaw(hash, raw, { source_id: t.id, origin: 'teams', original: path.relative(MOCK_DIR, file).replace(/\\/g, '/'), ingested_at: ingestedAt, ext: 'json' });
   const root = t.messages[0];
   const last = t.messages[t.messages.length - 1];
@@ -158,9 +136,9 @@ function ingestTeams(file: string, claims: Record<string, Claim[]>, ingestedAt: 
 
 function ingestEmail(file: string, claims: Record<string, Claim[]>, ingestedAt: string): WikiPage {
   const org = loadOrg();
-  const raw = fs.readFileSync(file, 'utf8');
+  const raw = boundText(readText(file));
   const hash = sha256(raw);
-  const e = JSON.parse(raw) as EmailExport;
+  const e = EmailSchema.parse(parseJson(raw));
   putRaw(hash, raw, { source_id: e.id, origin: 'outlook', original: path.relative(MOCK_DIR, file).replace(/\\/g, '/'), ingested_at: ingestedAt, ext: 'json' });
   const c = claims[e.id] ?? [];
   const sender = org.person(e.from);
@@ -206,9 +184,7 @@ export function ingest(): { pages: number } {
   saveTasks([]);
 
   // MOCK: seed the query log with questions colleagues asked this month.
-  const seed = JSON.parse(fs.readFileSync(path.join(MOCK_DIR, 'internal', 'queries-seed.json'), 'utf8')) as {
-    queries: { ts: string; question: string; asked_by: string }[];
-  };
+  const seed = readJson(path.join(MOCK_DIR, 'internal', 'queries-seed.json'), QueriesSeedSchema);
   for (const q of seed.queries) {
     const entry: QueryLogEntry = {
       ts: q.ts,

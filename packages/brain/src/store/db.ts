@@ -1,3 +1,7 @@
+import { LIMITS } from '../security/limits';
+import { parseEnv } from '../security/env';
+import { deadline } from '../security/runtime';
+import { ResourceError } from '../security/errors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -34,27 +38,32 @@ export function encode(v: unknown): unknown {
 }
 
 // ---------- node-postgres
-function wrapPg(client: pg.Pool | pg.PoolClient, close: () => Promise<void>, inTx = false): Db {
+function wrapPg(client: pg.Pool | pg.PoolClient, close: () => Promise<void>, inTx = false, active: () => boolean = () => true): Db {
   return {
     query: async (sql, params = []) => {
-      const r = await client.query(sql, params.map(encode));
+      if (!active()) throw new ResourceError(504, 'Transaction expired');
+      const r = await deadline(() => client.query(sql, params.map(encode)), LIMITS.dbTimeoutMs);
       return { rows: r.rows };
     },
     exec: async (sql) => {
-      await client.query(sql);
+      if (!active()) throw new ResourceError(504, 'Transaction expired');
+      await deadline(() => client.query(sql), LIMITS.dbTimeoutMs);
     },
     transaction: async (fn) => {
-      if (inTx) return fn(wrapPg(client, async () => {}, true)); // already inside a transaction: join it
+      if (inTx) return fn(wrapPg(client, async () => {}, true, active)); // already inside a transaction: join it
       const c = await (client as pg.Pool).connect();
+      let open = true;
       try {
         await c.query('BEGIN');
-        const out = await fn(wrapPg(c, async () => {}, true));
+        const out = await deadline(() => fn(wrapPg(c, async () => {}, true, () => open)), LIMITS.transactionTimeoutMs, () => { open = false; });
         await c.query('COMMIT');
         return out;
       } catch (e) {
+        open = false;
         await c.query('ROLLBACK');
         throw e;
       } finally {
+        open = false;
         c.release();
       }
     },
@@ -63,23 +72,33 @@ function wrapPg(client: pg.Pool | pg.PoolClient, close: () => Promise<void>, inT
 }
 
 export function pgDb(connectionString: string): Db {
-  const pool = new pg.Pool({ connectionString, max: 5 });
+  const pool = new pg.Pool({ connectionString, max: 5, connectionTimeoutMillis: LIMITS.dbTimeoutMs, query_timeout: LIMITS.dbTimeoutMs, statement_timeout: LIMITS.dbTimeoutMs, idle_in_transaction_session_timeout: LIMITS.transactionTimeoutMs });
   return wrapPg(pool, () => pool.end());
 }
 
 // ---------- PGlite
-function wrapPglite(client: PGlite | { query: PGlite['query']; exec: PGlite['exec'] }, close: () => Promise<void>, tx?: boolean): Db {
+function wrapPglite(client: PGlite | { query: PGlite['query']; exec: PGlite['exec'] }, close: () => Promise<void>, tx?: boolean, active: () => boolean = () => true): Db {
   return {
     query: async (sql, params = []) => {
-      const r = await client.query(sql, params.map(encode));
+      if (!active()) throw new ResourceError(504, 'Transaction expired');
+      const r = await deadline(() => client.query(sql, params.map(encode)), LIMITS.dbTimeoutMs);
       return { rows: r.rows as never[] };
     },
     exec: async (sql) => {
-      await client.exec(sql);
+      if (!active()) throw new ResourceError(504, 'Transaction expired');
+      await deadline(() => client.exec(sql), LIMITS.dbTimeoutMs);
     },
     transaction: async (fn) => {
-      if (tx) return fn(wrapPglite(client, async () => {}, true)); // already inside a transaction: join it
-      return (client as PGlite).transaction((t) => fn(wrapPglite(t as never, async () => {}, true)));
+      if (tx) return fn(wrapPglite(client, async () => {}, true, active)); // already inside a transaction: join it
+      let open = true;
+      return deadline(() => (client as PGlite).transaction(async (t) => {
+        if (!open) throw new ResourceError(504, 'Transaction expired');
+        try {
+          const result = await fn(wrapPglite(t as never, async () => {}, true, () => open));
+          if (!open) throw new ResourceError(504, 'Transaction expired');
+          return result;
+        } finally { open = false; }
+      }), LIMITS.transactionTimeoutMs, () => { open = false; });
     },
     close,
   };
@@ -88,7 +107,8 @@ function wrapPglite(client: PGlite | { query: PGlite['query']; exec: PGlite['exe
 /** Embedded Postgres + pgvector. `dataDir` undefined = in-memory (tests). */
 export async function pgliteDb(dataDir?: string): Promise<Db> {
   if (dataDir) fs.mkdirSync(path.dirname(path.resolve(dataDir)), { recursive: true });
-  const db = await PGlite.create(dataDir ? path.resolve(dataDir) : undefined, { extensions: { vector } });
+  const db = await deadline(() => PGlite.create(dataDir ? path.resolve(dataDir) : undefined, { extensions: { vector } }), LIMITS.transactionTimeoutMs);
+  await deadline(() => db.query("SELECT set_config('statement_timeout', $1, false)", [String(LIMITS.dbTimeoutMs)]), LIMITS.dbTimeoutMs);
   return wrapPglite(db, () => db.close());
 }
 
@@ -97,6 +117,7 @@ export async function pgliteDb(dataDir?: string): Promise<Db> {
  * (default ./vault-brain/pglite, gitignored), so the demo runs without Docker.
  */
 export async function connect(env: NodeJS.ProcessEnv = process.env): Promise<Db> {
-  if (env.DATABASE_URL) return pgDb(env.DATABASE_URL);
-  return pgliteDb(env.BRAIN_PGLITE_DIR || path.join(process.cwd(), 'vault-brain', 'pglite'));
+  const config = parseEnv(env);
+  if (config.DATABASE_URL) return pgDb(config.DATABASE_URL);
+  return pgliteDb(config.BRAIN_PGLITE_DIR || path.join(process.cwd(), 'vault-brain', 'pglite'));
 }

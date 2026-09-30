@@ -9,7 +9,7 @@ export const SlotSchema = z.object({
   weight: z.number().min(0).max(1),
   valueType: ValueTypeSchema.optional(),
   unit: UnitSchema.optional(),
-});
+}).strict();
 export type Slot = z.infer<typeof SlotSchema>;
 
 export const SlotTemplateSchema = z.object({
@@ -18,5 +18,5 @@ export const SlotTemplateSchema = z.object({
   impact: Impact,
   slots: z.array(SlotSchema).min(1).max(30),
   halfLifeDays: z.number().positive(),
-});
+}).strict();
 export type SlotTemplate = z.infer<typeof SlotTemplateSchema>;

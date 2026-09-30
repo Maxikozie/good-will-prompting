@@ -10,7 +10,7 @@ export const ScopeSchema = z.object({
   product: ProductSchema.optional(),
   customerId: z.string().trim().max(100).optional(),
   language: z.string().trim().max(20).optional(),
-});
+}).strict();
 export type Scope = z.infer<typeof ScopeSchema>;
 
 export const PartialScopeSchema = ScopeSchema.partial();

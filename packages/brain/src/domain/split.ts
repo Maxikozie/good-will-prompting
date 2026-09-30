@@ -1,3 +1,4 @@
+import { boundText } from '../security/input';
 export interface TextSpan {
   ordinal: number;
   start: number;
@@ -26,6 +27,7 @@ function paragraphs(section: string, base: number): { start: number; end: number
  * `text.slice(start, end)` is exactly the piece. Headings are the semantic units, so small pieces are NOT merged.
  */
 export function splitByHeadings(text: string, maxTokens = MAX_SECTION_TOKENS): TextSpan[] {
+  boundText(text);
   const starts = [0, ...[...text.matchAll(/^## .+$/gm)].map((m) => m.index)];
   const out: TextSpan[] = [];
   const push = (start: number, end: number) => {

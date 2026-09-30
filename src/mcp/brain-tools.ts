@@ -1,3 +1,8 @@
+import { randomUUID } from 'node:crypto';
+import { withBudget } from '../../packages/brain/src/security/budget';
+import { toolBuckets } from '../../packages/brain/src/security/runtime';
+import { ResourceError } from '../../packages/brain/src/security/errors';
+import { LIMITS } from '../../packages/brain/src/security/limits';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { Db } from '../../packages/brain/src/store/db';
@@ -7,10 +12,10 @@ import { submissionSchema, VerificationService } from '../verification/service';
 import type { VerifiedToken } from '../verification/tokens';
 
 const id = z.string().trim().min(1).max(200);
-const analyzeSchema = z.object({ question: z.string().trim().min(3).max(1000), documents: z.array(z.object({ id }).strict()).min(1).max(50) }).strict();
+const analyzeSchema = z.object({ question: z.string().trim().min(3).max(LIMITS.questionChars), documents: z.array(z.object({ id }).strict()).min(1).max(LIMITS.documentsPerCase) }).strict();
 const submitSchema = submissionSchema;
 // Source metadata/ACLs must come from the trusted connector in ingestReference, never wiki text.
-const ingestSchema = z.object({ pages: z.array(z.object({ id, text: z.string().max(100_000) }).strict()).min(1).max(50) }).strict();
+const ingestSchema = z.object({ pages: z.array(z.object({ id, text: z.string().max(LIMITS.documentChars) }).strict()).min(1).max(LIMITS.wikiPagesPerIngest) }).strict();
 
 export interface BrainOperations {
   // Deliberately no default/stub implementations. Register only when the actual pipeline/verification service is available.
@@ -33,11 +38,16 @@ export function registerBrainTools(server: McpServer, principal: Principal, deps
       try {
         // This MUST precede even acquiring a DB transaction (BEGIN is itself a DB operation).
         authorize(principal, name, { kind: 'service' });
-        const result = await deps.db.transaction((tx) => handle(tx, input as z.infer<z.ZodObject<S>>));
+        toolBuckets.consume(principal.id, name);
+        // Model work must not sit inside an ambient transaction: failed calls must not roll back their budget.
+        const invoke = (tx: Db) => handle(tx, input as z.infer<z.ZodObject<S>>);
+        const result = name === 'brain_analyze_case' || name === 'brain_ingest_reference'
+          ? await withBudget({ db: deps.db, runId: `operation-${randomUUID()}`, principal: principal.id }, () => invoke(deps.db))
+          : await deps.db.transaction(invoke);
         return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
       } catch (err) {
         // Uniform denial: no IDs, existence hints, database messages, source names or tokens.
-        return { isError: true, content: [{ type: 'text' as const, text: err instanceof Forbidden ? '403 Forbidden' : 'Internal error' }] };
+        return { isError: true, content: [{ type: 'text' as const, text: err instanceof Forbidden ? '403 Forbidden' : err instanceof ResourceError ? `${err.status} ${err.message}` : err instanceof z.ZodError ? '400 Invalid input' : 'Internal error' }] };
       }
     });
   }

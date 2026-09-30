@@ -1,3 +1,7 @@
+import { LIMITS } from '../security/limits';
+import { EmbeddingInputSchema } from '../security/model';
+import { reserveModelCall } from '../security/budget';
+import { boundText } from '../security/input';
 import type { Embedder } from './types';
 
 export { OllamaEmbedder } from './ollama';
@@ -23,14 +27,18 @@ const tokenize = (s: string) => fold(s).split(/[^a-z0-9]+/).filter(Boolean);
  * No model, no network: same text in, same vector out, on every machine.
  */
 export class FakeEmbedder implements Embedder {
+  readonly budgetsManaged = true as const;
   readonly modelId = 'fake-hash-768';
   readonly dimensions = DIMENSIONS;
 
   async embed(texts: readonly string[]): Promise<number[][]> {
+    EmbeddingInputSchema.max(LIMITS.embeddingBatch).parse(texts);
+    if (texts.length) await reserveModelCall(texts, 0);
     return texts.map((t) => this.vector(t));
   }
 
   vector(text: string): number[] {
+    boundText(text);
     const v = new Array<number>(DIMENSIONS).fill(0);
     const toks = tokenize(text);
     const add = (feature: string, weight: number) => {
