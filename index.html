@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrustLayer · 20-second demo</title>
+<meta name="description" content="One MCP server that tells your agents which SD Worx source to trust. Built at Tectonic Hackathon Ghent.">
+<meta property="og:title" content="TrustLayer · 20-second demo">
+<meta property="og:description" content="Your assistant found 3 documents and all 3 were wrong. TrustLayer found the right one in a Teams chat.">
+<meta property="og:image" content="https://maxikozie.github.io/good-will-prompting/poster.jpg">
+<meta property="og:video" content="https://maxikozie.github.io/good-will-prompting/trustlayer.mp4">
+<meta property="og:video:type" content="video/mp4">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #0b1f4b;
+    background: radial-gradient(120% 70% at 50% -10%, #eef3fc 0%, #ffffff 55%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 28px; padding: 32px 20px;
+  }
+  .frame { position: relative; width: min(1280px, 100%); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 16px 60px rgba(15, 23, 42, .14); background: #fff; }
+  body.portrait .frame { width: min(480px, 100%); }
+  video { display: block; width: 100%; height: auto; }
+  .play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, .25); border: 0; cursor: pointer; }
+  .play span { display: flex; align-items: center; gap: 16px; background: #0b1f4b; color: #fff; border-radius: 999px;
+    padding: 14px 30px 14px 14px; font: 600 clamp(16px, 2.2vw, 24px)/1 inherit; font-family: inherit;
+    box-shadow: 0 12px 40px rgba(11, 31, 75, .35); }
+  .play i { width: 48px; height: 48px; border-radius: 50%; background: #e30613; display: flex; align-items: center; justify-content: center; }
+  .play i::after { content: ''; margin-left: 5px; border-style: solid; border-width: 10px 0 10px 17px; border-color: transparent transparent transparent #fff; }
+  .hidden { display: none; }
+  p { color: #475569; font-size: 18px; text-align: center; }
+  a { color: #1d3f8f; font-weight: 600; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="frame">
+    <video id="v" controls playsinline preload="auto" poster="poster.jpg">
+      <source src="trustlayer.mp4" type="video/mp4">
+    </video>
+    <button class="play" id="play" aria-label="Play the demo with sound"><span><i></i>Play · sound on</span></button>
+  </div>
+  <p>TrustLayer: one MCP server that tells your agents what to trust. Built at Tectonic Hackathon Ghent, SD Worx track.<br>
+    <a href="https://github.com/Maxikozie/good-will-prompting">← Back to the repo on GitHub</a></p>
+<script>
+  const v = document.getElementById('v');
+  const btn = document.getElementById('play');
+  // Portrait screens get the vertical cut.
+  if (matchMedia('(orientation: portrait) and (max-width: 820px)').matches) {
+    document.body.classList.add('portrait');
+    v.poster = 'poster-vertical.jpg';
+    v.querySelector('source').src = 'trustlayer-vertical.mp4';
+    v.load();
+  }
+  const start = () => { btn.classList.add('hidden'); v.muted = false; v.play(); };
+  btn.addEventListener('click', start);
+  v.addEventListener('play', () => btn.classList.add('hidden'));
+  // The visitor clicked through to watch, so try playing with sound right away. If the browser blocks it, the button stays.
+  v.play().catch(() => {});
+</script>
+</body>
+</html>
