@@ -1,4 +1,7 @@
-[![TrustLayer in 20 seconds: watch the video](docs/media/trustlayer.jpg)](docs/media/trustlayer.mp4)
+<p align="center">
+  <a href="https://maxikozie.github.io/good-will-prompting/"><img src="docs/media/trustlayer-preview.gif" alt="TrustLayer demo preview. Click to watch the full 20-second video with sound." width="100%"></a>
+</p>
+<p align="center"><b><a href="https://maxikozie.github.io/good-will-prompting/">▶ Watch the 20-second demo (sound on)</a></b> · <a href="https://github.com/Maxikozie/good-will-prompting/raw/main/docs/media/trustlayer.mp4">download MP4</a></p>
 
 - **Demo video 1:** https://files.catbox.moe/52pee7.webm
 - **Demo video 2:** https://files.catbox.moe/o3oeb9.webm
