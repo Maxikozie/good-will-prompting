@@ -21,10 +21,10 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 28px; padding: 32px 20px;
   }
-  .frame { position: relative; width: min(1280px, 100%); border-radius: 20px; overflow: hidden;
+  .frame { position: relative; width: fit-content; max-width: 100%; border-radius: 20px; overflow: hidden;
     box-shadow: 0 16px 60px rgba(15, 23, 42, .14); background: #fff; }
-  body.portrait .frame { width: min(480px, 100%); }
-  video { display: block; width: 100%; height: auto; }
+  /* Fit inside the window on both axes, keeping the aspect ratio. */
+  video { display: block; width: auto; height: auto; max-width: min(1280px, calc(100vw - 40px)); max-height: calc(100svh - 170px); }
   .play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     background: rgba(255, 255, 255, .25); border: 0; cursor: pointer; }
   .play span { display: flex; align-items: center; gap: 16px; background: #0b1f4b; color: #fff; border-radius: 999px;
@@ -50,13 +50,20 @@
 <script>
   const v = document.getElementById('v');
   const btn = document.getElementById('play');
-  // Portrait screens get the vertical cut.
-  if (matchMedia('(orientation: portrait) and (max-width: 820px)').matches) {
-    document.body.classList.add('portrait');
-    v.poster = 'poster-vertical.jpg';
-    v.querySelector('source').src = 'trustlayer-vertical.mp4';
+  // Portrait phones get the vertical cut. Re-checked on resize until playback starts
+  // (a window can report 0×0 while it is still opening).
+  let cut = 'landscape';
+  const pick = () => {
+    if (v.currentTime > 0 || !innerWidth || !innerHeight) return;
+    const want = innerHeight > innerWidth && innerWidth <= 820 ? 'vertical' : 'landscape';
+    if (want === cut) return;
+    cut = want;
+    v.poster = want === 'vertical' ? 'poster-vertical.jpg' : 'poster.jpg';
+    v.querySelector('source').src = want === 'vertical' ? 'trustlayer-vertical.mp4' : 'trustlayer.mp4';
     v.load();
-  }
+  };
+  pick();
+  addEventListener('resize', pick);
   const start = () => { btn.classList.add('hidden'); v.muted = false; v.play(); };
   btn.addEventListener('click', start);
   v.addEventListener('play', () => btn.classList.add('hidden'));
