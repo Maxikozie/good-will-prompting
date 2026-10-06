@@ -1,3 +1,5 @@
+[![TrustLayer in 20 seconds: watch the video](docs/media/trustlayer.jpg)](docs/media/trustlayer.mp4)
+
 - **Demo video 1:** https://files.catbox.moe/52pee7.webm
 - **Demo video 2:** https://files.catbox.moe/o3oeb9.webm
 - **Presentation (pptx):** https://files.catbox.moe/4y6j16.pptx
